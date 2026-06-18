@@ -23,6 +23,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.turkcell.lyraapp.ui.feed.FeedScreen
 import com.turkcell.lyraapp.ui.icons.LyraIcons
+import com.turkcell.lyraapp.ui.search.SearchScreen
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
 /** Bottom navigation sekmesini tanımlayan görsel model. */
@@ -64,7 +65,7 @@ fun HomeScreen(
         ) {
             // Ana sayfa (feed) gerçek ekranıyla bağlandı; diğer sekmeler henüz placeholder.
             composable(HomeDestinations.FEED) { FeedScreen(onSongClick = onSongClick) }
-            composable(HomeDestinations.SEARCH) { PlaceholderTab("Ara") }
+            composable(HomeDestinations.SEARCH) { SearchScreen() }
             composable(HomeDestinations.LIBRARY) { PlaceholderTab("Kütüphane") }
             composable(HomeDestinations.FAVORITES) { PlaceholderTab("Favoriler") }
             composable(HomeDestinations.PROFILE) { PlaceholderTab("Profil") }
