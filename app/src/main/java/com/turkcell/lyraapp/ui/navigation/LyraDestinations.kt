@@ -18,4 +18,12 @@ object LyraDestinations {
 
     /** Belirli bir şarkı için somut player rotasını üretir. */
     fun playerRoute(songId: String): String = "$PLAYER/$songId"
+
+    // Çalma listesi detayı playlistId argümanı taşır: "playlistDetail/{playlistId}".
+    const val PLAYLIST_DETAIL = "playlistDetail"
+    const val PLAYLIST_DETAIL_ARG_ID = "playlistId"
+    const val PLAYLIST_DETAIL_ROUTE = "$PLAYLIST_DETAIL/{$PLAYLIST_DETAIL_ARG_ID}"
+
+    /** Belirli bir çalma listesi için somut detay rotasını üretir. */
+    fun playlistDetailRoute(playlistId: String): String = "$PLAYLIST_DETAIL/$playlistId"
 }

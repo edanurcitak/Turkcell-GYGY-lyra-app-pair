@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.turkcell.lyraapp.ui.home.HomeScreen
 import com.turkcell.lyraapp.ui.login.LoginScreen
 import com.turkcell.lyraapp.ui.player.PlayerScreen
+import com.turkcell.lyraapp.ui.playlistdetail.PlaylistDetailScreen
 import com.turkcell.lyraapp.ui.register.RegisterScreen
 
 /**
@@ -55,6 +56,9 @@ fun LyraNavHost(
                 onSongClick = { songId ->
                     navController.navigate(LyraDestinations.playerRoute(songId))
                 },
+                onPlaylistClick = { playlistId ->
+                    navController.navigate(LyraDestinations.playlistDetailRoute(playlistId))
+                },
             )
         }
         // Şarkı oynatma (tam ekran); songId argümanını taşır.
@@ -65,6 +69,20 @@ fun LyraNavHost(
             ),
         ) {
             PlayerScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        // Çalma listesi detayı (tam ekran); playlistId argümanını taşır. Şarkı tıklaması player'a gider.
+        composable(
+            route = LyraDestinations.PLAYLIST_DETAIL_ROUTE,
+            arguments = listOf(
+                navArgument(LyraDestinations.PLAYLIST_DETAIL_ARG_ID) { type = NavType.StringType },
+            ),
+        ) {
+            PlaylistDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onSongClick = { songId ->
+                    navController.navigate(LyraDestinations.playerRoute(songId))
+                },
+            )
         }
     }
 }

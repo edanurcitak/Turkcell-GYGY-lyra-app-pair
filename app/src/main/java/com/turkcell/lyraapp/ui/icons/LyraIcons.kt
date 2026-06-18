@@ -117,6 +117,68 @@ object LyraIcons {
                     "0 -8,1.34 -8,4v2h16v-2c0,-2.66 -5.33,-4 -8,-4z",
         )
     }
+
+    /** Kütüphane üst barı: çalma listesi ekle (Material Add). */
+    val Add: ImageVector by lazy {
+        lyraIcon(
+            name = "Add",
+            pathData = "M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+        )
+    }
+
+    /** Seçili filtre çipinin leading onayı (Material Check). */
+    val Check: ImageVector by lazy {
+        lyraIcon(
+            name = "Check",
+            pathData = "M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z",
+        )
+    }
+
+    /** Çalma listesi satırı: "daha fazla" menüsü (Material MoreVert). */
+    val MoreVert: ImageVector by lazy {
+        lyraIcon(
+            name = "MoreVert",
+            pathData = "M12,8c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM12,10c-1.1,0 " +
+                    "-2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2zM12,16c-1.1,0 -2,0.9 -2,2s0.9," +
+                    "2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2z",
+        )
+    }
+
+    /** Sabitlenmiş çalma listesi göstergesi (Material PushPin). */
+    val PushPin: ImageVector by lazy {
+        lyraIcon(
+            name = "PushPin",
+            pathData = "M16,9V4l1,0c0.55,0 1,-0.45 1,-1v0c0,-0.55 -0.45,-1 -1,-1H7C6.45,2 6,2.45 6,3v0c0," +
+                    "0.55 0.45,1 1,1l1,0v5c0,1.66 -1.34,3 -3,3v2h5.97v7l1,1 1,-1v-7H19v-2C17.34,12 " +
+                    "16,10.66 16,9z",
+        )
+    }
+
+    /** Sıralama satırı: sıralama düzenini değiştir (Material SwapVert). */
+    val SwapVert: ImageVector by lazy {
+        lyraIcon(
+            name = "SwapVert",
+            pathData = "M16,17.01V10h-2v7.01h-3L15,21l4,-3.99h-3zM9,3L5,6.99h3V14h2V6.99h3L9,3z",
+        )
+    }
+
+    /** Görünüm değiştirici: ızgara görünümü (Material GridView). */
+    val GridView: ImageVector by lazy {
+        lyraIcon(
+            name = "GridView",
+            pathData = "M3,3v8h8V3H3zM9,9H5V5h4V9zM3,13v8h8v-8H3zM9,19H5v-4h4V19zM13,3v8h8V3h-8zM19," +
+                    "9h-4V5h4V9zM13,13v8h8v-8h-8zM19,19h-4v-4h4V19z",
+        )
+    }
+
+    /** Görünüm değiştirici: liste görünümü (Material ViewList). */
+    val ViewList: ImageVector by lazy {
+        lyraIcon(
+            name = "ViewList",
+            pathData = "M4,14h4v-4L4,10v4zM4,19h4v-4L4,15v4zM4,9h4L8,5L4,5v4zM9,14h12v-4L9,10v4zM9," +
+                    "19h12v-4L9,15v4zM9,5v4h12L21,5L9,5z",
+        )
+    }
 }
 
 /**

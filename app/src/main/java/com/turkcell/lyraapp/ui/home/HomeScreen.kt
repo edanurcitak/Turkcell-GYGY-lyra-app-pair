@@ -23,6 +23,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.turkcell.lyraapp.ui.feed.FeedScreen
 import com.turkcell.lyraapp.ui.icons.LyraIcons
+import com.turkcell.lyraapp.ui.library.LibraryScreen
 import com.turkcell.lyraapp.ui.search.SearchScreen
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
@@ -51,6 +52,7 @@ private val homeTabs = listOf(
 @Composable
 fun HomeScreen(
     onSongClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -63,10 +65,10 @@ fun HomeScreen(
             startDestination = HomeDestinations.FEED,
             modifier = Modifier.padding(innerPadding),
         ) {
-            // Ana sayfa (feed) gerçek ekranıyla bağlandı; diğer sekmeler henüz placeholder.
+            // Feed/Ara/Kütüphane gerçek ekranlarıyla bağlandı; Favoriler/Profil henüz placeholder.
             composable(HomeDestinations.FEED) { FeedScreen(onSongClick = onSongClick) }
             composable(HomeDestinations.SEARCH) { SearchScreen() }
-            composable(HomeDestinations.LIBRARY) { PlaceholderTab("Kütüphane") }
+            composable(HomeDestinations.LIBRARY) { LibraryScreen(onPlaylistClick = onPlaylistClick) }
             composable(HomeDestinations.FAVORITES) { PlaceholderTab("Favoriler") }
             composable(HomeDestinations.PROFILE) { PlaceholderTab("Profil") }
         }
@@ -116,7 +118,7 @@ private fun PlaceholderTab(label: String) {
 @Composable
 private fun HomeScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
-        HomeScreen(onSongClick = {})
+        HomeScreen(onSongClick = {}, onPlaylistClick = {})
     }
 }
 
@@ -124,6 +126,6 @@ private fun HomeScreenDarkPreview() {
 @Composable
 private fun HomeScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
-        HomeScreen(onSongClick = {})
+        HomeScreen(onSongClick = {}, onPlaylistClick = {})
     }
 }

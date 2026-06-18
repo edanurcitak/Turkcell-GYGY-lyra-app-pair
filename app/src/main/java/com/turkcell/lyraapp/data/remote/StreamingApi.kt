@@ -1,5 +1,7 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.PlaylistDetailResponseDto
+import com.turkcell.lyraapp.data.remote.dto.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.StreamUrlResponseDto
 import retrofit2.http.GET
@@ -9,8 +11,8 @@ import retrofit2.http.Query
 /**
  * Streaming API uç noktaları (bkz. `docs/api/openapi.json`).
  *
- * Bu adımda yalnızca şarkı listeleme kullanılır; `stream-url` (çalma) ve `playlists`
- * uçları sonraki adımların kapsamındadır.
+ * Şarkı listeleme ve çalma listeleri kullanılır; `stream-url` (çalma) sonraki adımların
+ * kapsamındadır.
  */
 interface StreamingApi {
 
@@ -33,4 +35,18 @@ interface StreamingApi {
      */
     @GET("api/v1/songs/{id}/stream-url")
     suspend fun getStreamUrl(@Path("id") songId: String): StreamUrlResponseDto
+
+    /**
+     * Tüm çalma listelerini (şarkısız) döndürür.
+     */
+    @GET("api/v1/playlists")
+    suspend fun getPlaylists(): PlaylistsResponseDto
+
+    /**
+     * Bir çalma listesinin detayını sıralı şarkılarıyla döndürür.
+     *
+     * @param id çalma listesi kimliği (ör. `p_late-night-drive`)
+     */
+    @GET("api/v1/playlists/{id}")
+    suspend fun getPlaylistDetail(@Path("id") id: String): PlaylistDetailResponseDto
 }
