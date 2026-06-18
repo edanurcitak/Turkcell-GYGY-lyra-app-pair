@@ -1,9 +1,11 @@
 package com.turkcell.lyraapp.ui.feed
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,18 +14,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,9 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.turkcell.lyraapp.data.feed.ArtworkTone
-import com.turkcell.lyraapp.data.feed.MediaCard
-import com.turkcell.lyraapp.data.feed.QuickPick
+import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.ui.icons.LyraIcons
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
@@ -46,9 +47,18 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
  * State'i [FeedViewModel]'den toplar, görsel içeriği stateless gövdeye devreder.
  */
 @Composable
-fun FeedScreen(modifier: Modifier = Modifier, viewModel: FeedViewModel = hiltViewModel()) {
+fun FeedScreen(
+    onSongClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: FeedViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    FeedScreen(uiState = uiState, onIntent = viewModel::onIntent, modifier = modifier)
+    FeedScreen(
+        uiState = uiState,
+        onIntent = viewModel::onIntent,
+        onSongClick = onSongClick,
+        modifier = modifier,
+    )
 }
 
 /** Feed ekranının stateless gövdesi. */
@@ -56,12 +66,12 @@ fun FeedScreen(modifier: Modifier = Modifier, viewModel: FeedViewModel = hiltVie
 private fun FeedScreen(
     uiState: FeedUiState,
     onIntent: (FeedIntent) -> Unit,
+    onSongClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(vertical = 16.dp),
     ) {
         Header(
@@ -72,31 +82,26 @@ private fun FeedScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        QuickPickGrid(
-            items = uiState.quickPicks,
-            modifier = Modifier.padding(horizontal = 24.dp),
-        )
+        // İçerik alanı: yükleniyor / hata / boş / liste durumları.
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+        ) {
+            when {
+                uiState.isLoading -> LoadingState()
+                uiState.errorMessage != null -> ErrorState(
+                    message = uiState.errorMessage,
+                    onRetry = { onIntent(FeedIntent.Refresh) },
+                )
 
-        Spacer(Modifier.height(28.dp))
-
-        SectionHeader(
-            title = "Son çalınanlar",
-            actionLabel = "Tümü",
-            modifier = Modifier.padding(horizontal = 24.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        MediaCardRow(items = uiState.recentlyPlayed)
-
-        Spacer(Modifier.height(28.dp))
-
-        SectionHeader(
-            title = "Senin için çalma listeleri",
-            modifier = Modifier.padding(horizontal = 24.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        MediaCardRow(items = uiState.playlists)
-
-        Spacer(Modifier.height(16.dp))
+                uiState.songs.isEmpty() -> EmptyState()
+                else -> SongList(
+                    songs = uiState.songs,
+                    onSongClick = onSongClick,
+                )
+            }
+        }
     }
 }
 
@@ -142,186 +147,152 @@ private fun Header(
 }
 
 @Composable
-private fun QuickPickGrid(
-    items: List<QuickPick>,
-    modifier: Modifier = Modifier,
+private fun SongList(
+    songs: List<Song>,
+    onSongClick: (String) -> Unit,
 ) {
-    // İç içe dikey scroll çakışmasını önlemek için LazyVerticalGrid yerine manuel 2 sütun.
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        items.chunked(2).forEach { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                rowItems.forEach { item ->
-                    QuickPickTile(item = item, modifier = Modifier.weight(1f))
-                }
-                // Tek kalan eleman olursa hizayı korumak için boş ağırlık.
-                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickPickTile(
-    item: QuickPick,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.height(56.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(
-                tone = item.tone,
-                modifier = Modifier
-                    .padding(6.dp)
-                    .size(44.dp),
-                cornerRadius = 8.dp,
-            )
+        item {
             Text(
-                text = item.title,
-                style = MaterialTheme.typography.labelLarge,
+                text = "Şarkılar",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
             )
+        }
+        items(songs, key = { it.id }) { song ->
+            SongRow(song = song, onClick = { onSongClick(song.id) })
         }
     }
 }
 
 @Composable
-private fun SectionHeader(
-    title: String,
-    modifier: Modifier = Modifier,
-    actionLabel: String? = null,
+private fun SongRow(
+    song: Song,
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
+        SongArtwork(
+            songId = song.id,
+            modifier = Modifier.size(56.dp),
         )
-        if (actionLabel != null) {
-            // "Tümünü gör" navigasyonu kapsam dışı; şimdilik statik.
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
             Text(
-                text = actionLabel,
-                style = MaterialTheme.typography.labelLarge,
+                text = song.title,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = song.subtitle(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
 
-@Composable
-private fun MediaCardRow(items: List<MediaCard>) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        items(items, key = { it.id }) { card ->
-            MediaCardItem(card)
-        }
-    }
-}
+/** "sanatçı · albüm" alt başlığı; albüm yoksa yalnızca sanatçı. */
+private fun Song.subtitle(): String =
+    if (album.isNullOrBlank()) artist else "$artist · $album"
 
+/**
+ * Kapak yer tutucu.
+ *
+ * API'da şarkı için renk olmadığından (§2.2), renk [songId]'den deterministik üretilir:
+ * aynı şarkı her zaman aynı rengi alır, recomposition'da titremez.
+ */
 @Composable
-private fun MediaCardItem(card: MediaCard) {
-    Column(modifier = Modifier.width(150.dp)) {
-        Artwork(
-            tone = card.tone,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp),
-            cornerRadius = 16.dp,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = card.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = card.subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/** Asset olmadığından kapak görseli yerine tema tonundan türetilen renkli yer tutucu. */
-@Composable
-private fun Artwork(
-    tone: ArtworkTone,
+private fun SongArtwork(
+    songId: String,
     modifier: Modifier = Modifier,
-    cornerRadius: androidx.compose.ui.unit.Dp = 12.dp,
 ) {
+    val color = remember(songId) { artworkColorFor(songId) }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(tone.toContainerColor()),
+            .clip(RoundedCornerShape(10.dp))
+            .background(color),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = LyraIcons.Waveform,
             contentDescription = null,
-            tint = tone.toOnContainerColor().copy(alpha = 0.45f),
+            tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(24.dp),
         )
     }
 }
 
-@Composable
-private fun ArtworkTone.toContainerColor(): Color = when (this) {
-    ArtworkTone.PRIMARY -> MaterialTheme.colorScheme.primaryContainer
-    ArtworkTone.SECONDARY -> MaterialTheme.colorScheme.secondaryContainer
-    ArtworkTone.TERTIARY -> MaterialTheme.colorScheme.tertiaryContainer
-    ArtworkTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHighest
+/** [id]'nin hash'inden stabil bir renk türetir (rastgele görünür ama deterministiktir). */
+private fun artworkColorFor(id: String): Color {
+    val hue = (((id.hashCode() % 360) + 360) % 360).toFloat()
+    return Color.hsv(hue = hue, saturation = 0.5f, value = 0.6f)
 }
 
 @Composable
-private fun ArtworkTone.toOnContainerColor(): Color = when (this) {
-    ArtworkTone.PRIMARY -> MaterialTheme.colorScheme.onPrimaryContainer
-    ArtworkTone.SECONDARY -> MaterialTheme.colorScheme.onSecondaryContainer
-    ArtworkTone.TERTIARY -> MaterialTheme.colorScheme.onTertiaryContainer
-    ArtworkTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface
+private fun LoadingState() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+    }
 }
 
-private val previewFeed = FeedUiState(
-    greeting = "İyi akşamlar",
-    userInitials = "ZK",
-    quickPicks = listOf(
-        QuickPick("1", "Gece Sürüşü", ArtworkTone.PRIMARY),
-        QuickPick("2", "Sabah Kahvaltısı", ArtworkTone.TERTIARY),
-        QuickPick("3", "Neon Sokaklar", ArtworkTone.SECONDARY),
-        QuickPick("4", "Odaklan", ArtworkTone.NEUTRAL),
-    ),
-    recentlyPlayed = listOf(
-        MediaCard("r1", "Neon Sokaklar", "Şehir Işıkları", ArtworkTone.SECONDARY),
-        MediaCard("r2", "Derin Mavi", "Okyanus", ArtworkTone.PRIMARY),
-    ),
-    playlists = listOf(
-        MediaCard("p1", "Akşam Sakinliği", "Lyra Mix", ArtworkTone.NEUTRAL),
-        MediaCard("p2", "Yoğunlaşma", "Lo-Fi seçkisi", ArtworkTone.PRIMARY),
-    ),
-    isLoading = false,
+@Composable
+private fun EmptyState() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = "Henüz şarkı yok",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ErrorState(
+    message: String,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onRetry) {
+            Text("Tekrar dene")
+        }
+    }
+}
+
+private val previewSongs = listOf(
+    Song("s_neon-tide", "Neon Tide", "Aurora Drift", "City Lights", 32000),
+    Song("s_midnight", "Midnight Avenue", "Echo Park", null, 41000),
+    Song("s_deep-blue", "Derin Mavi", "Okyanus", "Mavi", 28000),
+    Song("s_polaris", "Yıldız Tozu", "Polaris", "Kuzey", 36000),
 )
 
 @Preview(name = "Feed • Dark", showBackground = true)
@@ -329,7 +300,11 @@ private val previewFeed = FeedUiState(
 private fun FeedScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            FeedScreen(uiState = previewFeed, onIntent = {})
+            FeedScreen(
+                uiState = FeedUiState(songs = previewSongs, isLoading = false),
+                onIntent = {},
+                onSongClick = {},
+            )
         }
     }
 }
@@ -339,7 +314,28 @@ private fun FeedScreenDarkPreview() {
 private fun FeedScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            FeedScreen(uiState = previewFeed, onIntent = {})
+            FeedScreen(
+                uiState = FeedUiState(songs = previewSongs, isLoading = false),
+                onIntent = {},
+                onSongClick = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "Feed • Error", showBackground = true)
+@Composable
+private fun FeedScreenErrorPreview() {
+    LyraAppTheme(darkTheme = true) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            FeedScreen(
+                uiState = FeedUiState(
+                    isLoading = false,
+                    errorMessage = "Şarkılar yüklenemedi. Lütfen tekrar deneyin.",
+                ),
+                onIntent = {},
+                onSongClick = {},
+            )
         }
     }
 }

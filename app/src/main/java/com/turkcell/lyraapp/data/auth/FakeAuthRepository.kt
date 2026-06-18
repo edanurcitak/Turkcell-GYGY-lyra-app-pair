@@ -22,4 +22,12 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         // TODO: Gerçek API entegrasyonu (başka takımın REST servisi) bağlanacak.
         return Result.success(Unit)
     }
+
+    override suspend fun login(
+        phoneNumber: String,
+        password: String,
+    ): Result<Unit> {
+        // TODO: Gerçek API entegrasyonu (başka takımın REST servisi) bağlanacak.
+        return Result.success(Unit)
+    }
 }

@@ -48,7 +48,10 @@ private val homeTabs = listOf(
  * türetilir; ayrı bir state/ViewModel tutulmaz.
  */
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+fun HomeScreen(
+    onSongClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val navController = rememberNavController()
     Scaffold(
         modifier = modifier,
@@ -60,7 +63,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(innerPadding),
         ) {
             // Ana sayfa (feed) gerçek ekranıyla bağlandı; diğer sekmeler henüz placeholder.
-            composable(HomeDestinations.FEED) { FeedScreen() }
+            composable(HomeDestinations.FEED) { FeedScreen(onSongClick = onSongClick) }
             composable(HomeDestinations.SEARCH) { PlaceholderTab("Ara") }
             composable(HomeDestinations.LIBRARY) { PlaceholderTab("Kütüphane") }
             composable(HomeDestinations.FAVORITES) { PlaceholderTab("Favoriler") }
@@ -112,7 +115,7 @@ private fun PlaceholderTab(label: String) {
 @Composable
 private fun HomeScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
-        HomeScreen()
+        HomeScreen(onSongClick = {})
     }
 }
 
@@ -120,6 +123,6 @@ private fun HomeScreenDarkPreview() {
 @Composable
 private fun HomeScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
-        HomeScreen()
+        HomeScreen(onSongClick = {})
     }
 }

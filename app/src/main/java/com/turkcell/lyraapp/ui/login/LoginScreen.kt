@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,10 +47,19 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
+    onNavigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Tek seferlik navigasyon olayını dinle (state'te tutmadan).
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                LoginEffect.NavigateToHome -> onNavigateToHome()
+            }
+        }
+    }
     LoginScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
@@ -132,6 +144,38 @@ private fun LoginScreen(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.align(Alignment.End),
             )
+
+            Spacer(Modifier.height(24.dp))
+
+            if (uiState.errorMessage != null) {
+                Text(
+                    text = uiState.errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Button(
+                onClick = { onIntent(LoginIntent.Submit) },
+                enabled = uiState.phoneNumber.isNotBlank() &&
+                    uiState.password.isNotBlank() &&
+                    !uiState.isSubmitting,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+            ) {
+                if (uiState.isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    Text("Giriş yap")
+                }
+            }
 
             Spacer(Modifier.height(24.dp))
 

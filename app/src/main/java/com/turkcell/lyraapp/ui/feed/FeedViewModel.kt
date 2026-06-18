@@ -2,7 +2,7 @@ package com.turkcell.lyraapp.ui.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.turkcell.lyraapp.data.feed.FeedRepository
+import com.turkcell.lyraapp.data.feed.SongRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -10,16 +10,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Ana sayfa (feed) ekranının MVI ViewModel'i (AGENTS.MD §4.4).
  *
- * [FeedRepository]'den (mock) ana sayfa içeriğini yükler ve tek bir [StateFlow] üzerinden
- * [FeedUiState] yayınlar. Bağımlılık Hilt tarafından constructor ile enjekte edilir.
+ * Şarkı listesini [SongRepository] üzerinden Streaming API'den yükler ve tek bir [StateFlow]
+ * ile [FeedUiState] yayınlar. Bağımlılık Hilt tarafından constructor ile enjekte edilir.
  */
 @HiltViewModel
 class FeedViewModel @Inject constructor(
-    private val feedRepository: FeedRepository,
+    private val songRepository: SongRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedUiState())
@@ -37,17 +38,19 @@ class FeedViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val feed = feedRepository.getHomeFeed()
-            _uiState.update {
-                it.copy(
-                    greeting = feed.greeting,
-                    userInitials = feed.userInitials,
-                    quickPicks = feed.quickPicks,
-                    recentlyPlayed = feed.recentlyPlayed,
-                    playlists = feed.playlists,
-                    isLoading = false,
-                )
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            try {
+                val songs = songRepository.getSongs()
+                _uiState.update { it.copy(songs = songs, isLoading = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Şarkılar yüklenemedi. Lütfen tekrar deneyin.",
+                    )
+                }
             }
         }
     }
