@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.turkcell.lyraapp.ui.feed.FeedScreen
 import com.turkcell.lyraapp.ui.icons.LyraIcons
 import com.turkcell.lyraapp.ui.library.LibraryScreen
+import com.turkcell.lyraapp.ui.profile.ProfileScreen
 import com.turkcell.lyraapp.ui.search.SearchScreen
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
@@ -66,7 +67,7 @@ fun HomeScreen(
             startDestination = HomeDestinations.FEED,
             modifier = Modifier.padding(innerPadding),
         ) {
-            // Feed/Ara/Kütüphane gerçek ekranlarıyla bağlandı; Favoriler/Profil henüz placeholder.
+            // Feed/Ara/Kütüphane/Profil gerçek ekranlarıyla bağlandı; Favoriler henüz placeholder.
             composable(HomeDestinations.FEED) { FeedScreen(onSongClick = onSongClick) }
             composable(HomeDestinations.SEARCH) { SearchScreen() }
             composable(HomeDestinations.LIBRARY) {
@@ -76,7 +77,7 @@ fun HomeScreen(
                 )
             }
             composable(HomeDestinations.FAVORITES) { PlaceholderTab("Favoriler") }
-            composable(HomeDestinations.PROFILE) { PlaceholderTab("Profil") }
+            composable(HomeDestinations.PROFILE) { ProfileScreen() }
         }
     }
 }
