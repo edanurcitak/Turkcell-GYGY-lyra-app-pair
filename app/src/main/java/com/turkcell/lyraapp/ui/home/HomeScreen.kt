@@ -53,6 +53,7 @@ private val homeTabs = listOf(
 fun HomeScreen(
     onSongClick: (songId: String, title: String, artist: String) -> Unit,
     onPlaylistClick: (String) -> Unit,
+    onCreatePlaylist: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -68,7 +69,12 @@ fun HomeScreen(
             // Feed/Ara/Kütüphane gerçek ekranlarıyla bağlandı; Favoriler/Profil henüz placeholder.
             composable(HomeDestinations.FEED) { FeedScreen(onSongClick = onSongClick) }
             composable(HomeDestinations.SEARCH) { SearchScreen() }
-            composable(HomeDestinations.LIBRARY) { LibraryScreen(onPlaylistClick = onPlaylistClick) }
+            composable(HomeDestinations.LIBRARY) {
+                LibraryScreen(
+                    onPlaylistClick = onPlaylistClick,
+                    onCreatePlaylistClick = onCreatePlaylist,
+                )
+            }
             composable(HomeDestinations.FAVORITES) { PlaceholderTab("Favoriler") }
             composable(HomeDestinations.PROFILE) { PlaceholderTab("Profil") }
         }
@@ -118,7 +124,7 @@ private fun PlaceholderTab(label: String) {
 @Composable
 private fun HomeScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
-        HomeScreen(onSongClick = { _, _, _ -> }, onPlaylistClick = {})
+        HomeScreen(onSongClick = { _, _, _ -> }, onPlaylistClick = {}, onCreatePlaylist = {})
     }
 }
 
@@ -126,6 +132,6 @@ private fun HomeScreenDarkPreview() {
 @Composable
 private fun HomeScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
-        HomeScreen(onSongClick = { _, _, _ -> }, onPlaylistClick = {})
+        HomeScreen(onSongClick = { _, _, _ -> }, onPlaylistClick = {}, onCreatePlaylist = {})
     }
 }

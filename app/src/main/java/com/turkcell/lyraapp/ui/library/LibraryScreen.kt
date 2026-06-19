@@ -58,6 +58,7 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (String) -> Unit,
+    onCreatePlaylistClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -66,6 +67,7 @@ fun LibraryScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
         onPlaylistClick = onPlaylistClick,
+        onCreatePlaylistClick = onCreatePlaylistClick,
         modifier = modifier,
     )
 }
@@ -76,6 +78,7 @@ private fun LibraryScreen(
     uiState: LibraryUiState,
     onIntent: (LibraryIntent) -> Unit,
     onPlaylistClick: (String) -> Unit,
+    onCreatePlaylistClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -83,7 +86,10 @@ private fun LibraryScreen(
             .fillMaxSize()
             .padding(vertical = 16.dp),
     ) {
-        LibraryTopBar(modifier = Modifier.padding(horizontal = 24.dp))
+        LibraryTopBar(
+            onCreatePlaylistClick = onCreatePlaylistClick,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
 
         Spacer(Modifier.height(16.dp))
 
@@ -125,7 +131,10 @@ private fun LibraryScreen(
 }
 
 @Composable
-private fun LibraryTopBar(modifier: Modifier = Modifier) {
+private fun LibraryTopBar(
+    onCreatePlaylistClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -137,7 +146,7 @@ private fun LibraryTopBar(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
-        // Salt görsel: arama/ekleme aksiyonları talep edilmedi (§4.6).
+        // Salt görsel: arama aksiyonu talep edilmedi (§4.6).
         IconButton(onClick = {}) {
             Icon(
                 imageVector = LyraIcons.Search,
@@ -145,7 +154,8 @@ private fun LibraryTopBar(modifier: Modifier = Modifier) {
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
-        IconButton(onClick = {}) {
+        // İşlevsel: yeni çalma listesi oluşturma ekranını açar (kullanıcı kararı).
+        IconButton(onClick = onCreatePlaylistClick) {
             Icon(
                 imageVector = LyraIcons.Add,
                 contentDescription = "Çalma listesi ekle",
@@ -492,6 +502,7 @@ private fun LibraryScreenListDarkPreview() {
                 uiState = LibraryUiState(playlists = previewPlaylists, isLoading = false),
                 onIntent = {},
                 onPlaylistClick = {},
+                onCreatePlaylistClick = {},
             )
         }
     }
@@ -506,6 +517,7 @@ private fun LibraryScreenListLightPreview() {
                 uiState = LibraryUiState(playlists = previewPlaylists, isLoading = false),
                 onIntent = {},
                 onPlaylistClick = {},
+                onCreatePlaylistClick = {},
             )
         }
     }
@@ -524,6 +536,7 @@ private fun LibraryScreenGridDarkPreview() {
                 ),
                 onIntent = {},
                 onPlaylistClick = {},
+                onCreatePlaylistClick = {},
             )
         }
     }
@@ -541,6 +554,7 @@ private fun LibraryScreenErrorPreview() {
                 ),
                 onIntent = {},
                 onPlaylistClick = {},
+                onCreatePlaylistClick = {},
             )
         }
     }

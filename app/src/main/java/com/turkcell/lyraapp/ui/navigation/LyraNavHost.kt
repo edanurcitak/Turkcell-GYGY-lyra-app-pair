@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.turkcell.lyraapp.ui.createplaylist.CreatePlaylistScreen
 import com.turkcell.lyraapp.ui.home.HomeScreen
 import com.turkcell.lyraapp.ui.login.LoginScreen
 import com.turkcell.lyraapp.ui.player.PlayerScreen
@@ -59,7 +60,12 @@ fun LyraNavHost(
                 onPlaylistClick = { playlistId ->
                     navController.navigate(LyraDestinations.playlistDetailRoute(playlistId))
                 },
+                onCreatePlaylist = { navController.navigate(LyraDestinations.CREATE_PLAYLIST) },
             )
+        }
+        // Yeni çalma listesi oluşturma (tam ekran; BNB'nin üstünü kaplar). Kaydet işlevsiz (uç nokta yok).
+        composable(LyraDestinations.CREATE_PLAYLIST) {
+            CreatePlaylistScreen(onNavigateBack = { navController.popBackStack() })
         }
         // Şarkı oynatma (tam ekran); songId path + title/artist query argümanlarını taşır.
         composable(

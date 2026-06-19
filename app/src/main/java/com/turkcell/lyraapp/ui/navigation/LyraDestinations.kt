@@ -38,4 +38,7 @@ object LyraDestinations {
 
     /** Belirli bir çalma listesi için somut detay rotasını üretir. */
     fun playlistDetailRoute(playlistId: String): String = "$PLAYLIST_DETAIL/$playlistId"
+
+    // Yeni çalma listesi oluşturma (tam ekran; argümansız).
+    const val CREATE_PLAYLIST = "createPlaylist"
 }
