@@ -133,6 +133,8 @@ private fun PlayerScreen(
                 isPlaying = uiState.isPlaying,
                 isLoading = uiState.isLoading,
                 onPlayPause = { onIntent(PlayerIntent.PlayPause) },
+                onSkipPrevious = { onIntent(PlayerIntent.SkipPrevious) },
+                onSkipNext = { onIntent(PlayerIntent.SkipNext) },
             )
             Spacer(Modifier.weight(1f))
         }
@@ -298,6 +300,8 @@ private fun Controls(
     isPlaying: Boolean,
     isLoading: Boolean,
     onPlayPause: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onSkipNext: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -315,6 +319,7 @@ private fun Controls(
             contentDescription = "Önceki",
             tint = MaterialTheme.colorScheme.onSurface,
             iconSize = 36.dp,
+            onClick = onSkipPrevious,
         )
         PlayPauseButton(isPlaying = isPlaying, isLoading = isLoading, onClick = onPlayPause)
         ControlIcon(
@@ -322,6 +327,7 @@ private fun Controls(
             contentDescription = "Sonraki",
             tint = MaterialTheme.colorScheme.onSurface,
             iconSize = 36.dp,
+            onClick = onSkipNext,
         )
         ControlIcon(
             icon = LyraIcons.Repeat,
@@ -332,15 +338,19 @@ private fun Controls(
     }
 }
 
-/** Görsel kontrol ikonu (kuyruk olmadığından no-op; favori gibi şimdilik etkisiz). */
+/**
+ * Kontrol ikonu. Önceki/sonraki için [onClick] kuyruğu sürer; karıştır/tekrarla için
+ * kuyruk/ayar verisi taşınmadığından varsayılan no-op kalır.
+ */
 @Composable
 private fun ControlIcon(
     icon: ImageVector,
     contentDescription: String,
     tint: Color,
     iconSize: Dp,
+    onClick: () -> Unit = {},
 ) {
-    IconButton(onClick = { /* kuyruk verisi yok: görsel/no-op */ }) {
+    IconButton(onClick = onClick) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,

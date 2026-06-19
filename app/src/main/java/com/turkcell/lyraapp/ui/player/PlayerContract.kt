@@ -29,6 +29,12 @@ sealed interface PlayerIntent {
     /** İlerleme çubuğundan konuma atla (işlevsel — ExoPlayer'a bağlı). */
     data class SeekTo(val positionMs: Long) : PlayerIntent
 
+    /** Kuyrukta sonraki şarkı (işlevsel — kuyruk bağlamına bağlı). */
+    data object SkipNext : PlayerIntent
+
+    /** Kuyrukta önceki şarkı (işlevsel — kuyruk bağlamına bağlı). */
+    data object SkipPrevious : PlayerIntent
+
     /** Hata sonrası yeniden yükle. */
     data object Retry : PlayerIntent
 }

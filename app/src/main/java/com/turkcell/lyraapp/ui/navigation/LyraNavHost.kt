@@ -55,7 +55,10 @@ fun LyraNavHost(
         composable(LyraDestinations.HOME) {
             HomeScreen(
                 onSongClick = { songId, title, artist ->
-                    navController.navigate(LyraDestinations.playerRoute(songId, title, artist))
+                    // Feed'den açılır: önceki/sonraki katalog (getSongs) içinde gezer.
+                    navController.navigate(
+                        LyraDestinations.playerRoute(songId, title, artist, LyraDestinations.QUEUE_FEED),
+                    )
                 },
                 onPlaylistClick = { playlistId ->
                     navController.navigate(LyraDestinations.playlistDetailRoute(playlistId))
@@ -80,6 +83,10 @@ fun LyraNavHost(
                     type = NavType.StringType
                     defaultValue = ""
                 },
+                navArgument(LyraDestinations.PLAYER_ARG_QUEUE) {
+                    type = NavType.StringType
+                    defaultValue = LyraDestinations.QUEUE_FEED
+                },
             ),
         ) {
             PlayerScreen(onNavigateBack = { navController.popBackStack() })
@@ -90,11 +97,19 @@ fun LyraNavHost(
             arguments = listOf(
                 navArgument(LyraDestinations.PLAYLIST_DETAIL_ARG_ID) { type = NavType.StringType },
             ),
-        ) {
+        ) { backStackEntry ->
+            val playlistId = backStackEntry.arguments
+                ?.getString(LyraDestinations.PLAYLIST_DETAIL_ARG_ID)
+                .orEmpty()
             PlaylistDetailScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onSongClick = { songId, title, artist ->
-                    navController.navigate(LyraDestinations.playerRoute(songId, title, artist))
+                    // Çalma listesinden açılır: önceki/sonraki bu listenin şarkıları içinde gezer.
+                    navController.navigate(
+                        LyraDestinations.playerRoute(
+                            songId, title, artist, LyraDestinations.queuePlaylist(playlistId),
+                        ),
+                    )
                 },
             )
         }

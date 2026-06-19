@@ -3,6 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Arka plan oynatma: medya oturumu foreground servis olarak çalışır. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Android 13+ medya bildirimini gösterebilmek için (runtime'da istenir). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".LyraApplication"
@@ -26,6 +31,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Arka plan oynatmayı yöneten medya oturumu servisi. ExoPlayer + MediaSession sahibidir;
+            Media3 bu oturumdan sistem medya bildirimini (görseldeki "mini player") üretir.
+            exported=true → harici medya kontrolcüleri (sistem, Bluetooth vb.) bağlanabilir.
+        -->
+        <service
+            android:name=".ui.player.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

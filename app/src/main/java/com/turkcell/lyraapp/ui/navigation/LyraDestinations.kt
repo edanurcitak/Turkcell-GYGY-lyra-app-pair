@@ -13,23 +13,44 @@ object LyraDestinations {
     const val REGISTER = "register"
     const val HOME = "home"
 
-    // Player ekranı songId path argümanı + title/artist query argümanları taşır:
-    // "player/{songId}?title={title}&artist={artist}" (title/artist meta veriyi player'a iletir).
+    // Player ekranı songId path argümanı + title/artist/queue query argümanları taşır:
+    // "player/{songId}?title={title}&artist={artist}&queue={queue}".
+    // title/artist meta veriyi; queue ise önceki/sonraki için kuyruk kaynağını ("feed" veya
+    // "playlist:<id>") player'a iletir.
     const val PLAYER = "player"
     const val PLAYER_ARG_SONG_ID = "songId"
     const val PLAYER_ARG_TITLE = "title"
     const val PLAYER_ARG_ARTIST = "artist"
+    const val PLAYER_ARG_QUEUE = "queue"
     const val PLAYER_ROUTE =
-        "$PLAYER/{$PLAYER_ARG_SONG_ID}?$PLAYER_ARG_TITLE={$PLAYER_ARG_TITLE}&$PLAYER_ARG_ARTIST={$PLAYER_ARG_ARTIST}"
+        "$PLAYER/{$PLAYER_ARG_SONG_ID}?$PLAYER_ARG_TITLE={$PLAYER_ARG_TITLE}" +
+            "&$PLAYER_ARG_ARTIST={$PLAYER_ARG_ARTIST}&$PLAYER_ARG_QUEUE={$PLAYER_ARG_QUEUE}"
+
+    /** Kuyruk kaynağı: ana sayfadaki şarkı kataloğu. */
+    const val QUEUE_FEED = "feed"
+
+    /** Kuyruk kaynağı öneki: belirli bir çalma listesi ("playlist:<id>"). */
+    const val QUEUE_PLAYLIST_PREFIX = "playlist:"
+
+    /** Çalma listesi için kuyruk kaynağı değeri üretir. */
+    fun queuePlaylist(playlistId: String): String = "$QUEUE_PLAYLIST_PREFIX$playlistId"
 
     /**
      * Belirli bir şarkı için somut player rotasını üretir.
      *
      * title/artist serbest metin olabildiğinden ([Uri.encode]) kodlanır; player ekranında
      * gösterilecek meta veriyi taşır (API'da tekil şarkı uç noktası olmadığından nav ile iletilir).
+     * [queue], önceki/sonraki butonlarının gezeceği listeyi belirler ([QUEUE_FEED] veya
+     * [queuePlaylist]).
      */
-    fun playerRoute(songId: String, title: String, artist: String): String =
-        "$PLAYER/$songId?$PLAYER_ARG_TITLE=${Uri.encode(title)}&$PLAYER_ARG_ARTIST=${Uri.encode(artist)}"
+    fun playerRoute(
+        songId: String,
+        title: String,
+        artist: String,
+        queue: String = QUEUE_FEED,
+    ): String =
+        "$PLAYER/$songId?$PLAYER_ARG_TITLE=${Uri.encode(title)}" +
+            "&$PLAYER_ARG_ARTIST=${Uri.encode(artist)}&$PLAYER_ARG_QUEUE=${Uri.encode(queue)}"
 
     // Çalma listesi detayı playlistId argümanı taşır: "playlistDetail/{playlistId}".
     const val PLAYLIST_DETAIL = "playlistDetail"
