@@ -179,6 +179,96 @@ object LyraIcons {
                     "19h12v-4L9,15v4zM9,5v4h12L21,5L9,5z",
         )
     }
+
+    // ── Player ekranı ikonları ──
+
+    /** Player üst barı: ekranı küçült/kapat (Material ExpandMore). */
+    val ExpandMore: ImageVector by lazy {
+        lyraIcon(
+            name = "ExpandMore",
+            pathData = "M16.59,8.59L12,13.17 7.41,8.59 6,10l6,6 6,-6z",
+        )
+    }
+
+    /** Player kontrolü: karıştır (Material Shuffle). */
+    val Shuffle: ImageVector by lazy {
+        lyraIcon(
+            name = "Shuffle",
+            pathData = "M10.59,9.17L5.41,4 4,5.41l5.17,5.17 1.42,-1.41zM14.5,4l2.04,2.04L4,18.59 " +
+                    "5.41,20 17.96,7.46 20,9.5L20,4zM14.83,13.41l-1.41,1.41 3.13,3.13L14.5,20L20," +
+                    "20v-5.5l-2.04,2.04z",
+        )
+    }
+
+    /** Player kontrolü: önceki şarkı (Material SkipPrevious). */
+    val SkipPrevious: ImageVector by lazy {
+        lyraIcon(
+            name = "SkipPrevious",
+            pathData = "M6,6h2v12L6,18zM9.5,12l8.5,6L18,6z",
+        )
+    }
+
+    /** Player kontrolü: sonraki şarkı (Material SkipNext). */
+    val SkipNext: ImageVector by lazy {
+        lyraIcon(
+            name = "SkipNext",
+            pathData = "M6,18l8.5,-6L6,6v12zM16,6v12h2L18,6z",
+        )
+    }
+
+    /** Player kontrolü: oynat (Material PlayArrow). */
+    val PlayArrow: ImageVector by lazy {
+        lyraIcon(
+            name = "PlayArrow",
+            pathData = "M8,5v14l11,-7z",
+        )
+    }
+
+    /** Player kontrolü: duraklat (Material Pause). */
+    val Pause: ImageVector by lazy {
+        lyraIcon(
+            name = "Pause",
+            pathData = "M6,19h4L10,5L6,5v14zM14,5v14h4L18,5h-4z",
+        )
+    }
+
+    /** Player kontrolü: tekrarla (Material Repeat). */
+    val Repeat: ImageVector by lazy {
+        lyraIcon(
+            name = "Repeat",
+            pathData = "M7,7h10v3l4,-4 -4,-4v3L5,5v6h2L7,7zM17,17L7,17v-3l-4,4 4,4v-3h12v-6h-2v4z",
+        )
+    }
+
+    /** Player alt barı: cihazlara yayınla (Material Cast). */
+    val Cast: ImageVector by lazy {
+        lyraIcon(
+            name = "Cast",
+            pathData = "M21,3L3,3c-1.1,0 -2,0.9 -2,2v3h2L3,5h18v14h-7v2h7c1.1,0 2,-0.9 2,-2L23," +
+                    "5c0,-1.1 -0.9,-2 -2,-2zM1,18v3h3c0,-1.66 -1.34,-3 -3,-3zM1,14v2c2.76,0 5," +
+                    "2.24 5,5h2c0,-3.87 -3.13,-7 -7,-7zM1,10v2c4.97,0 9,4.03 9,9h2c0,-6.08 " +
+                    "-4.93,-11 -11,-11z",
+        )
+    }
+
+    /** Player alt barı: bildirim/arka plan (Material Notifications). */
+    val Notifications: ImageVector by lazy {
+        lyraIcon(
+            name = "Notifications",
+            pathData = "M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.9,2 2,2zM18,16v-5c0,-3.07 -1.63,-5.64 " +
+                    "-4.5,-6.32L13.5,4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.64," +
+                    "5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z",
+        )
+    }
+
+    /** Player alt barı: çalma sırası/kuyruk (Material QueueMusic). */
+    val QueueMusic: ImageVector by lazy {
+        lyraIcon(
+            name = "QueueMusic",
+            pathData = "M15,6H3v2h12V6zM15,10H3v2h12v-2zM3,16h8v-2H3v2zM17,6v8.18c-0.31,-0.11 " +
+                    "-0.65,-0.18 -1,-0.18 -1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3V8h3V6h-5z",
+        )
+    }
 }
 
 /**

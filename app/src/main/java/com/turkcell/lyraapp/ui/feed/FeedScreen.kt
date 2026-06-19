@@ -48,7 +48,7 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
  */
 @Composable
 fun FeedScreen(
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
@@ -66,7 +66,7 @@ fun FeedScreen(
 private fun FeedScreen(
     uiState: FeedUiState,
     onIntent: (FeedIntent) -> Unit,
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -149,7 +149,7 @@ private fun Header(
 @Composable
 private fun SongList(
     songs: List<Song>,
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -166,7 +166,7 @@ private fun SongList(
             )
         }
         items(songs, key = { it.id }) { song ->
-            SongRow(song = song, onClick = { onSongClick(song.id) })
+            SongRow(song = song, onClick = { onSongClick(song.id, song.title, song.artist) })
         }
     }
 }
@@ -303,7 +303,7 @@ private fun FeedScreenDarkPreview() {
             FeedScreen(
                 uiState = FeedUiState(songs = previewSongs, isLoading = false),
                 onIntent = {},
-                onSongClick = {},
+                onSongClick = { _, _, _ -> },
             )
         }
     }
@@ -317,7 +317,7 @@ private fun FeedScreenLightPreview() {
             FeedScreen(
                 uiState = FeedUiState(songs = previewSongs, isLoading = false),
                 onIntent = {},
-                onSongClick = {},
+                onSongClick = { _, _, _ -> },
             )
         }
     }
@@ -334,7 +334,7 @@ private fun FeedScreenErrorPreview() {
                     errorMessage = "Şarkılar yüklenemedi. Lütfen tekrar deneyin.",
                 ),
                 onIntent = {},
-                onSongClick = {},
+                onSongClick = { _, _, _ -> },
             )
         }
     }

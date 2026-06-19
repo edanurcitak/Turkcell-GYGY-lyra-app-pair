@@ -1,16 +1,34 @@
 package com.turkcell.lyraapp.ui.player
 
 /**
- * Player ekranının MVI sözleşmesi.
+ * Player ekranının MVI sözleşmesi (AGENTS.MD §4.2 / §4.3).
  *
- * Oynatma kontrolleri (oynat/durdur, seek/ilerlet) doğrudan ExoPlayer'a bağlı `PlayerView`
- * tarafından yönetilir; bu yüzden [PlayerUiState] yalnızca yükleme/hata durumunu tutar.
+ * Özel "Şimdi Çalıyor" arayüzü ExoPlayer'ı doğrudan sürer; bu yüzden [PlayerUiState]
+ * oynatma durumunu (çalıyor mu, pozisyon, süre) ve gösterilecek meta veriyi tutar.
+ *
+ * Not (§2.2): [songId] yalnızca kapak rengini deterministik türetmek içindir (Feed/PlaylistDetail
+ * ile aynı `artworkColorFor` yaklaşımı). [title]/[artist] navigasyon argümanı olarak gelir;
+ * çalma listesi/kuyruk bağlamı player'a taşınmadığından üst barda yalnızca "Şimdi Çalıyor" yazar.
  */
 data class PlayerUiState(
+    val songId: String = "",
+    val title: String = "",
+    val artist: String = "",
+    val isPlaying: Boolean = false,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val isFavorite: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )
 
 sealed interface PlayerIntent {
+    /** Oynat/duraklat (işlevsel — ExoPlayer'a bağlı). */
+    data object PlayPause : PlayerIntent
+
+    /** İlerleme çubuğundan konuma atla (işlevsel — ExoPlayer'a bağlı). */
+    data class SeekTo(val positionMs: Long) : PlayerIntent
+
+    /** Hata sonrası yeniden yükle. */
     data object Retry : PlayerIntent
 }

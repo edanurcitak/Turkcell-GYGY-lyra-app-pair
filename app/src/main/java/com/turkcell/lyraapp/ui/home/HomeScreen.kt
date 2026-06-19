@@ -51,7 +51,7 @@ private val homeTabs = listOf(
  */
 @Composable
 fun HomeScreen(
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -118,7 +118,7 @@ private fun PlaceholderTab(label: String) {
 @Composable
 private fun HomeScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
-        HomeScreen(onSongClick = {}, onPlaylistClick = {})
+        HomeScreen(onSongClick = { _, _, _ -> }, onPlaylistClick = {})
     }
 }
 
@@ -126,6 +126,6 @@ private fun HomeScreenDarkPreview() {
 @Composable
 private fun HomeScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
-        HomeScreen(onSongClick = {}, onPlaylistClick = {})
+        HomeScreen(onSongClick = { _, _, _ -> }, onPlaylistClick = {})
     }
 }

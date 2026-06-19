@@ -51,7 +51,7 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 @Composable
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
@@ -71,7 +71,7 @@ private fun PlaylistDetailScreen(
     uiState: PlaylistDetailUiState,
     onIntent: (PlaylistDetailIntent) -> Unit,
     onNavigateBack: () -> Unit,
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -152,7 +152,7 @@ private fun DetailTopBar(
 @Composable
 private fun SongList(
     songs: List<Song>,
-    onSongClick: (String) -> Unit,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -160,7 +160,7 @@ private fun SongList(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(songs, key = { it.id }) { song ->
-            SongRow(song = song, onClick = { onSongClick(song.id) })
+            SongRow(song = song, onClick = { onSongClick(song.id, song.title, song.artist) })
         }
     }
 }
@@ -299,7 +299,7 @@ private fun PlaylistDetailScreenDarkPreview() {
                 ),
                 onIntent = {},
                 onNavigateBack = {},
-                onSongClick = {},
+                onSongClick = { _, _, _ -> },
             )
         }
     }
@@ -318,7 +318,7 @@ private fun PlaylistDetailScreenErrorPreview() {
                 ),
                 onIntent = {},
                 onNavigateBack = {},
-                onSongClick = {},
+                onSongClick = { _, _, _ -> },
             )
         }
     }

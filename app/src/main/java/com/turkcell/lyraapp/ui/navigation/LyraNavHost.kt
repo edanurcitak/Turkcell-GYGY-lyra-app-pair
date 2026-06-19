@@ -53,19 +53,27 @@ fun LyraNavHost(
         // Ana kabuk: kendi bottom navigation + nested NavHost'unu barındırır.
         composable(LyraDestinations.HOME) {
             HomeScreen(
-                onSongClick = { songId ->
-                    navController.navigate(LyraDestinations.playerRoute(songId))
+                onSongClick = { songId, title, artist ->
+                    navController.navigate(LyraDestinations.playerRoute(songId, title, artist))
                 },
                 onPlaylistClick = { playlistId ->
                     navController.navigate(LyraDestinations.playlistDetailRoute(playlistId))
                 },
             )
         }
-        // Şarkı oynatma (tam ekran); songId argümanını taşır.
+        // Şarkı oynatma (tam ekran); songId path + title/artist query argümanlarını taşır.
         composable(
             route = LyraDestinations.PLAYER_ROUTE,
             arguments = listOf(
                 navArgument(LyraDestinations.PLAYER_ARG_SONG_ID) { type = NavType.StringType },
+                navArgument(LyraDestinations.PLAYER_ARG_TITLE) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(LyraDestinations.PLAYER_ARG_ARTIST) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
             ),
         ) {
             PlayerScreen(onNavigateBack = { navController.popBackStack() })
@@ -79,8 +87,8 @@ fun LyraNavHost(
         ) {
             PlaylistDetailScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onSongClick = { songId ->
-                    navController.navigate(LyraDestinations.playerRoute(songId))
+                onSongClick = { songId, title, artist ->
+                    navController.navigate(LyraDestinations.playerRoute(songId, title, artist))
                 },
             )
         }
