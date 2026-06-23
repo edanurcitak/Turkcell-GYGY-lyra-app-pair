@@ -1,11 +1,9 @@
 package com.turkcell.lyraapp.ui.login
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -28,8 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,13 +36,12 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
  * Login ekranı — stateful giriş noktası (MVI).
  *
  * State'i [LoginViewModel]'den toplar ve kullanıcı aksiyonlarını [LoginIntent] olarak
- * geri iletir. Görsel içerik, Hilt'siz de önizlenebilmesi için ayrı bir stateless
- * composable'a ([LoginScreen]) devredilir.
+ * geri iletir. Parolasız akış: yalnızca telefon numarası alınır; "Devam et" OTP doğrulama
+ * ekranına geçişi tek seferlik [LoginEffect] ile tetikler.
  */
 @Composable
 fun LoginScreen(
-    onNavigateToRegister: () -> Unit,
-    onNavigateToHome: () -> Unit,
+    onNavigateToOtp: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -56,14 +50,13 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                LoginEffect.NavigateToHome -> onNavigateToHome()
+                is LoginEffect.NavigateToOtp -> onNavigateToOtp(effect.phone)
             }
         }
     }
     LoginScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
-        onNavigateToRegister = onNavigateToRegister,
         modifier = modifier,
     )
 }
@@ -76,7 +69,6 @@ fun LoginScreen(
 private fun LoginScreen(
     uiState: LoginUiState,
     onIntent: (LoginIntent) -> Unit,
-    onNavigateToRegister: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -114,7 +106,7 @@ private fun LoginScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                text = "Hesabına giriş yap, kaldığın yerden dinlemeye devam et.",
+                text = "Numaranı gir, sana bir doğrulama kodu gönderelim.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -124,25 +116,6 @@ private fun LoginScreen(
             PhoneNumberField(
                 value = uiState.phoneNumber,
                 onValueChange = { onIntent(LoginIntent.PhoneNumberChanged(it)) },
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            PasswordField(
-                value = uiState.password,
-                isPasswordVisible = uiState.isPasswordVisible,
-                onValueChange = { onIntent(LoginIntent.PasswordChanged(it)) },
-                onToggleVisibility = { onIntent(LoginIntent.TogglePasswordVisibility) },
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = "Şifremi unuttum",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.align(Alignment.End),
             )
 
             Spacer(Modifier.height(24.dp))
@@ -158,9 +131,7 @@ private fun LoginScreen(
 
             Button(
                 onClick = { onIntent(LoginIntent.Submit) },
-                enabled = uiState.phoneNumber.isNotBlank() &&
-                    uiState.password.isNotBlank() &&
-                    !uiState.isSubmitting,
+                enabled = uiState.phoneNumber.isNotBlank() && !uiState.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -173,31 +144,8 @@ private fun LoginScreen(
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
-                    Text("Giriş yap")
+                    Text("Devam et")
                 }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.CenterHorizontally),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Hesabın yok mu? ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Kayıt ol",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable(onClick = onNavigateToRegister),
-                )
             }
         }
     }
@@ -244,48 +192,12 @@ private fun PhoneNumberField(
     )
 }
 
-@Composable
-private fun PasswordField(
-    value: String,
-    isPasswordVisible: Boolean,
-    onValueChange: (String) -> Unit,
-    onToggleVisibility: () -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text("Şifre") },
-        leadingIcon = {
-            Icon(
-                imageVector = LyraIcons.Lock,
-                contentDescription = null,
-            )
-        },
-        trailingIcon = {
-            IconButton(onClick = onToggleVisibility) {
-                Icon(
-                    imageVector = LyraIcons.Visibility,
-                    contentDescription = null,
-                )
-            }
-        },
-        visualTransformation = if (isPasswordVisible) {
-            VisualTransformation.None
-        } else {
-            PasswordVisualTransformation()
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-    )
-}
-
 @Preview(name = "Login • Dark", showBackground = true)
 @Composable
 private fun LoginScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            LoginScreen(uiState = LoginUiState(), onIntent = {}, onNavigateToRegister = {})
+            LoginScreen(uiState = LoginUiState(), onIntent = {})
         }
     }
 }
@@ -295,7 +207,7 @@ private fun LoginScreenDarkPreview() {
 private fun LoginScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            LoginScreen(uiState = LoginUiState(), onIntent = {}, onNavigateToRegister = {})
+            LoginScreen(uiState = LoginUiState(), onIntent = {})
         }
     }
 }

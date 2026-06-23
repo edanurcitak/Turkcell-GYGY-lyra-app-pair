@@ -13,6 +13,15 @@ object LyraDestinations {
     const val REGISTER = "register"
     const val HOME = "home"
 
+    // OTP (doğrulama kodu) ekranı, doğrulanacak numarayı path argümanı olarak taşır:
+    // "otp/{phone}". phone, E.164-ish ("+90…") biçimindedir ve "+" içerdiğinden kodlanır.
+    const val OTP = "otp"
+    const val OTP_ARG_PHONE = "phone"
+    const val OTP_ROUTE = "$OTP/{$OTP_ARG_PHONE}"
+
+    /** Belirli bir numara için somut OTP rotasını üretir ("+" içerdiğinden [Uri.encode]). */
+    fun otpRoute(phone: String): String = "$OTP/${Uri.encode(phone)}"
+
     // Player ekranı songId path argümanı + title/artist/queue query argümanları taşır:
     // "player/{songId}?title={title}&artist={artist}&queue={queue}".
     // title/artist meta veriyi; queue ise önceki/sonraki için kuyruk kaynağını ("feed" veya

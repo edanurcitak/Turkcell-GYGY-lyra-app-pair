@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.turkcell.lyraapp.ui.createplaylist.CreatePlaylistScreen
 import com.turkcell.lyraapp.ui.home.HomeScreen
 import com.turkcell.lyraapp.ui.login.LoginScreen
+import com.turkcell.lyraapp.ui.otp.OtpScreen
 import com.turkcell.lyraapp.ui.player.PlayerScreen
 import com.turkcell.lyraapp.ui.playlistdetail.PlaylistDetailScreen
 import com.turkcell.lyraapp.ui.register.RegisterScreen
@@ -33,21 +34,41 @@ fun LyraNavHost(
     ) {
         composable(LyraDestinations.LOGIN) {
             LoginScreen(
-                onNavigateToRegister = { navController.navigate(LyraDestinations.REGISTER) },
+                // Telefon için OTP istendikten sonra doğrulama ekranına geç.
+                onNavigateToOtp = { phone ->
+                    navController.navigate(LyraDestinations.otpRoute(phone))
+                },
+            )
+        }
+        // OTP doğrulama ekranı; phone path argümanını taşır. Doğrulama sonrası:
+        // firstTime → profil tamamlama (register), kayıtlı → ana ekran.
+        composable(
+            route = LyraDestinations.OTP_ROUTE,
+            arguments = listOf(
+                navArgument(LyraDestinations.OTP_ARG_PHONE) { type = NavType.StringType },
+            ),
+        ) {
+            OtpScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCompleteInfo = { navController.navigate(LyraDestinations.REGISTER) },
                 onNavigateToHome = {
                     navController.navigate(LyraDestinations.HOME) {
-                        // Giriş sonrası login geri yığından temizlenir (geri tuşuyla dönülmez).
+                        // Giriş sonrası login/otp geri yığından temizlenir (geri tuşuyla dönülmez).
                         popUpTo(LyraDestinations.LOGIN) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
             )
         }
+        // Profil tamamlama ("Bilgilerini tamamla"); başarıda ana ekrana geçer.
         composable(LyraDestinations.REGISTER) {
             RegisterScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToLogin = {
-                    navController.popBackStack(LyraDestinations.LOGIN, inclusive = false)
+                onNavigateToHome = {
+                    navController.navigate(LyraDestinations.HOME) {
+                        popUpTo(LyraDestinations.LOGIN) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
             )
         }

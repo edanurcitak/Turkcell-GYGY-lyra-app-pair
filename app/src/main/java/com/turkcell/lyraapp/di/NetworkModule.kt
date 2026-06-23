@@ -1,5 +1,7 @@
 package com.turkcell.lyraapp.di
 
+import com.turkcell.lyraapp.data.remote.AuthApi
+import com.turkcell.lyraapp.data.remote.MeApi
 import com.turkcell.lyraapp.data.remote.StreamingApi
 import dagger.Module
 import dagger.Provides
@@ -59,4 +61,22 @@ object NetworkModule {
     @Singleton
     fun provideStreamingApi(retrofit: Retrofit): StreamingApi =
         retrofit.create(StreamingApi::class.java)
+
+    /**
+     * Parolasız (OTP) kimlik doğrulama uçları. Tümü public olduğundan [StreamingApi] ile aynı
+     * Retrofit istemcisini paylaşır (bkz. [com.turkcell.lyraapp.data.remote.AuthApi]).
+     */
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi =
+        retrofit.create(AuthApi::class.java)
+
+    /**
+     * Korumalı `me` grubu uçları. [AuthApi] ile aynı Retrofit istemcisini paylaşır; Bearer
+     * token'ı çağrı başına `@Header` ile geçirilir (bkz. [com.turkcell.lyraapp.data.remote.MeApi]).
+     */
+    @Provides
+    @Singleton
+    fun provideMeApi(retrofit: Retrofit): MeApi =
+        retrofit.create(MeApi::class.java)
 }
