@@ -1,6 +1,7 @@
 package com.turkcell.lyraapp.ui.home
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -24,6 +26,7 @@ import androidx.navigation.compose.rememberNavController
 import com.turkcell.lyraapp.ui.feed.FeedScreen
 import com.turkcell.lyraapp.ui.icons.LyraIcons
 import com.turkcell.lyraapp.ui.library.LibraryScreen
+import com.turkcell.lyraapp.ui.miniplayer.MiniPlayer
 import com.turkcell.lyraapp.ui.profile.ProfileScreen
 import com.turkcell.lyraapp.ui.search.SearchScreen
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
@@ -60,7 +63,17 @@ fun HomeScreen(
     val navController = rememberNavController()
     Scaffold(
         modifier = modifier,
-        bottomBar = { HomeBottomBar(navController) },
+        bottomBar = {
+            // Mini player BNB'nin hemen üstünde, her sekmenin altında kalıcı; aktif parça
+            // yokken kendini çizmez. bottomBar slotunda olduğundan içerik onun üstünü kaplamaz.
+            Column {
+                MiniPlayer(
+                    onExpand = onSongClick,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+                HomeBottomBar(navController)
+            }
+        },
     ) { innerPadding ->
         NavHost(
             navController = navController,

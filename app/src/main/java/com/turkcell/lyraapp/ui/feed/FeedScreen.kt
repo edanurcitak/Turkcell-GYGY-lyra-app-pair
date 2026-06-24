@@ -15,22 +15,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -77,6 +80,8 @@ private fun FeedScreen(
         Header(
             greeting = uiState.greeting,
             userInitials = uiState.userInitials,
+            isDarkTheme = uiState.isDarkTheme,
+            onToggleTheme = { onIntent(FeedIntent.ToggleTheme(!uiState.isDarkTheme)) },
             modifier = Modifier.padding(horizontal = 24.dp),
         )
 
@@ -95,11 +100,11 @@ private fun FeedScreen(
                     onRetry = { onIntent(FeedIntent.Refresh) },
                 )
 
-                uiState.songs.isEmpty() -> EmptyState()
-                else -> SongList(
-                    songs = uiState.songs,
-                    onSongClick = onSongClick,
-                )
+                uiState.recommendations.isEmpty() &&
+                    uiState.recentlyPlayed.isEmpty() &&
+                    uiState.forYou.isEmpty() -> EmptyState()
+
+                else -> FeedContent(uiState = uiState, onSongClick = onSongClick)
             }
         }
     }
@@ -109,6 +114,8 @@ private fun FeedScreen(
 private fun Header(
     greeting: String,
     userInitials: String,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -129,6 +136,15 @@ private fun Header(
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
+        // Görünüm düğmesi: gösterilen ikon, geçilecek modu temsil eder (koyuyken güneş, açıkken ay).
+        IconButton(onClick = onToggleTheme) {
+            Icon(
+                imageVector = if (isDarkTheme) LyraIcons.LightMode else LyraIcons.DarkMode,
+                contentDescription = if (isDarkTheme) "Açık temaya geç" else "Koyu temaya geç",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(4.dp))
         Surface(
             modifier = Modifier.size(40.dp),
             shape = CircleShape,
@@ -146,67 +162,212 @@ private fun Header(
     }
 }
 
+/**
+ * Yüklü içerik: üstte "Önerilenler" ızgarası, ardından yatay kaydırmalı bölümler.
+ *
+ * Bölümler tek bir dikey [LazyColumn]'da; karuseller kenara taşabilsin diye yatay dolgu
+ * bölüm başlıklarında ve [LazyRow] `contentPadding`'inde verilir, LazyColumn'a değil.
+ */
 @Composable
-private fun SongList(
-    songs: List<Song>,
+private fun FeedContent(
+    uiState: FeedUiState,
     onSongClick: (songId: String, title: String, artist: String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        item {
-            Text(
-                text = "Şarkılar",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
+        if (uiState.recommendations.isNotEmpty()) {
+            item(key = "recommendations") {
+                RecommendationSection(
+                    songs = uiState.recommendations,
+                    onSongClick = onSongClick,
+                )
+            }
         }
-        items(songs, key = { it.id }) { song ->
-            SongRow(song = song, onClick = { onSongClick(song.id, song.title, song.artist) })
+        if (uiState.recentlyPlayed.isNotEmpty()) {
+            item(key = "recently-played") {
+                SongCarousel(
+                    title = "Son çalınanlar",
+                    actionLabel = "Tümü",
+                    songs = uiState.recentlyPlayed,
+                    onSongClick = onSongClick,
+                )
+            }
+        }
+        if (uiState.forYou.isNotEmpty()) {
+            item(key = "for-you") {
+                SongCarousel(
+                    title = "Senin için müzikler",
+                    actionLabel = null,
+                    songs = uiState.forYou,
+                    onSongClick = onSongClick,
+                )
+            }
+        }
+    }
+}
+
+/** "Önerilenler" — 2 sütunlu kompakt kart ızgarası (en fazla 6 öğe). */
+@Composable
+private fun RecommendationSection(
+    songs: List<Song>,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
+) {
+    Column(Modifier.padding(horizontal = 24.dp)) {
+        SectionTitle("Önerilenler")
+        Spacer(Modifier.height(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            songs.take(6).chunked(2).forEach { rowSongs ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    rowSongs.forEach { song ->
+                        CompactSongCard(
+                            song = song,
+                            onClick = { onSongClick(song.id, song.title, song.artist) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    // Tek öğe kalan satırda hizayı korumak için boş yer.
+                    if (rowSongs.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun SongRow(
+private fun CompactSongCard(
+    song: Song,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .background(artworkBrush(song.id)),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp),
+        )
+    }
+}
+
+/** Başlık + (opsiyonel) "Tümü" + büyük kapaklı yatay liste. */
+@Composable
+private fun SongCarousel(
+    title: String,
+    actionLabel: String?,
+    songs: List<Song>,
+    onSongClick: (songId: String, title: String, artist: String) -> Unit,
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            // "Tümü": hedef ekran/uç olmadığından yalnızca görseldir (AGENTS.MD §4.6).
+            if (actionLabel != null) {
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            items(songs, key = { it.id }) { song ->
+                BigSongCard(
+                    song = song,
+                    onClick = { onSongClick(song.id, song.title, song.artist) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BigSongCard(
     song: Song,
     onClick: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .width(150.dp)
+            .clickable(onClick = onClick),
     ) {
-        SongArtwork(
-            songId = song.id,
-            modifier = Modifier.size(56.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = song.subtitle(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(artworkBrush(song.id)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = LyraIcons.Waveform,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.size(40.dp),
             )
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = song.subtitle(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 /** "sanatçı · albüm" alt başlığı; albüm yoksa yalnızca sanatçı. */
@@ -214,30 +375,21 @@ private fun Song.subtitle(): String =
     if (album.isNullOrBlank()) artist else "$artist · $album"
 
 /**
- * Kapak yer tutucu.
+ * Kapak yer tutucu gradyanı.
  *
- * API'da şarkı için renk olmadığından (§2.2), renk [songId]'den deterministik üretilir:
- * aynı şarkı her zaman aynı rengi alır, recomposition'da titremez.
+ * API'da şarkı için kapak/renk olmadığından (§2.2), gradyan [id]'den deterministik üretilir:
+ * aynı şarkı her zaman aynı rengi alır, recomposition'da titremez. Üç tonlu (açık→taban→koyu)
+ * geçiş, Player/bildirim kapağıyla görsel olarak tutarlıdır.
  */
-@Composable
-private fun SongArtwork(
-    songId: String,
-    modifier: Modifier = Modifier,
-) {
-    val color = remember(songId) { artworkColorFor(songId) }
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(color),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = LyraIcons.Waveform,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.85f),
-            modifier = Modifier.size(24.dp),
-        )
-    }
+private fun artworkBrush(id: String): Brush {
+    val base = artworkColorFor(id)
+    return Brush.linearGradient(
+        listOf(
+            lerp(base, Color.White, 0.22f),
+            base,
+            lerp(base, Color.Black, 0.30f),
+        ),
+    )
 }
 
 /** [id]'nin hash'inden stabil bir renk türetir (rastgele görünür ama deterministiktir). */
@@ -257,7 +409,7 @@ private fun LoadingState() {
 private fun EmptyState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            text = "Henüz şarkı yok",
+            text = "Henüz içerik yok",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -289,10 +441,12 @@ private fun ErrorState(
 }
 
 private val previewSongs = listOf(
-    Song("s_neon-tide", "Neon Tide", "Aurora Drift", "City Lights", 32000),
-    Song("s_midnight", "Midnight Avenue", "Echo Park", null, 41000),
+    Song("s_neon-tide", "Neon Sokaklar", "Şehir Işıkları", "City Lights", 32000),
     Song("s_deep-blue", "Derin Mavi", "Okyanus", "Mavi", 28000),
     Song("s_polaris", "Yıldız Tozu", "Polaris", "Kuzey", 36000),
+    Song("s_dawn", "Sabah Kahvesi", "Lo-Fi Cafe", null, 30000),
+    Song("s_focus", "Odaklan", "Deep Focus", null, 30000),
+    Song("s_summer", "Yaz Anıları", "Retro Wave", null, 30000),
 )
 
 @Preview(name = "Feed • Dark", showBackground = true)
@@ -301,7 +455,13 @@ private fun FeedScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             FeedScreen(
-                uiState = FeedUiState(songs = previewSongs, isLoading = false),
+                uiState = FeedUiState(
+                    recommendations = previewSongs,
+                    recentlyPlayed = previewSongs.take(4),
+                    forYou = previewSongs.takeLast(4),
+                    isDarkTheme = true,
+                    isLoading = false,
+                ),
                 onIntent = {},
                 onSongClick = { _, _, _ -> },
             )
@@ -315,7 +475,13 @@ private fun FeedScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             FeedScreen(
-                uiState = FeedUiState(songs = previewSongs, isLoading = false),
+                uiState = FeedUiState(
+                    recommendations = previewSongs,
+                    recentlyPlayed = previewSongs.take(4),
+                    forYou = previewSongs.takeLast(4),
+                    isDarkTheme = false,
+                    isLoading = false,
+                ),
                 onIntent = {},
                 onSongClick = { _, _, _ -> },
             )
@@ -331,7 +497,7 @@ private fun FeedScreenErrorPreview() {
             FeedScreen(
                 uiState = FeedUiState(
                     isLoading = false,
-                    errorMessage = "Şarkılar yüklenemedi. Lütfen tekrar deneyin.",
+                    errorMessage = "İçerik yüklenemedi. Lütfen tekrar deneyin.",
                 ),
                 onIntent = {},
                 onSongClick = { _, _, _ -> },

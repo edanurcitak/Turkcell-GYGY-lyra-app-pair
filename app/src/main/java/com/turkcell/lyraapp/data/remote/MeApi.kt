@@ -1,10 +1,13 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.UpdateInformationsBody
 import com.turkcell.lyraapp.data.remote.dto.UserResponseDto
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 /**
  * `me` grubu uç noktaları (bkz. `docs/api/openapi.json` → `me`).
@@ -27,4 +30,36 @@ interface MeApi {
         @Header("Authorization") authorization: String,
         @Body body: UpdateInformationsBody,
     ): UserResponseDto
+
+    /**
+     * "Son Çalınanlar" — kullanıcının son çaldığı farklı şarkılar (en yeni çalma önce).
+     *
+     * Yanıt zarfı katalog ile aynı (`{ data: [Song] }`) olduğundan [SongsResponseDto] yeniden
+     * kullanılır (`nextCursor` bu uçta gelmez, varsayılan `null` kalır).
+     */
+    @GET("api/v1/me/recently-played")
+    suspend fun getRecentlyPlayed(
+        @Header("Authorization") authorization: String,
+        @Query("limit") limit: Int = 20,
+    ): SongsResponseDto
+
+    /**
+     * "Senin İçin Müzikler" — kullanıcının en çok çaldığı sanatçılardan kişiselleştirilmiş karışım.
+     * Çalma geçmişi yoksa en yeni katalağa düşer.
+     */
+    @GET("api/v1/me/for-you")
+    suspend fun getForYou(
+        @Header("Authorization") authorization: String,
+        @Query("limit") limit: Int = 20,
+    ): SongsResponseDto
+
+    /**
+     * "Öneriler" — çalınan sanatçıların, henüz çalınmamış diğer şarkıları.
+     * Geçmiş yoksa en yeni çalınmamış katalağa düşer.
+     */
+    @GET("api/v1/me/recommendations")
+    suspend fun getRecommendations(
+        @Header("Authorization") authorization: String,
+        @Query("limit") limit: Int = 20,
+    ): SongsResponseDto
 }
