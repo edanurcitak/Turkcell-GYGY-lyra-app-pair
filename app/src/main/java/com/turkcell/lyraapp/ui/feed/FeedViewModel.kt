@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.ui.theme.AppThemeController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,9 +20,15 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * Üç kişiselleştirilmiş bölümü ([FeedUiState.recommendations] / [FeedUiState.recentlyPlayed] /
  * [FeedUiState.forYou]) [SongRepository] üzerinden **eşzamanlı** yükler ve tek bir [StateFlow] ile
- * [FeedUiState] yayınlar. Başlıktaki tema düğmesi app-scoped [AppThemeController]'a yazar; aynı
- * tutucudan okunan koyu/açık durumu [FeedUiState.isDarkTheme]'e yansıtılır. Bağımlılıklar Hilt
- * tarafından constructor ile enjekte edilir.
+ * [FeedUiState] yayınlar.
+ *
+ * **Tazeleme:** İlk yükleme ile sonraki tazelemeler aynı [load] yolunu kullanır; ekran her öne
+ * geldiğinde ([FeedIntent.Refresh]) tetiklenir, böylece yeni çalmalar "Son çalınanlar"a yansır.
+ * İçerik zaten varsa tazeleme **sessizdir**: spinner gösterilmez ve başarısız tazelemede mevcut
+ * içerik korunur (yalnızca ilk, boş yüklemede yüklenme/hata durumu gösterilir).
+ *
+ * Başlıktaki tema düğmesi app-scoped [AppThemeController]'a yazar; aynı tutucudan okunan koyu/açık
+ * durumu [FeedUiState.isDarkTheme]'e yansıtılır. Bağımlılıklar Hilt ile constructor'dan enjekte edilir.
  */
 @HiltViewModel
 class FeedViewModel @Inject constructor(
@@ -32,9 +39,12 @@ class FeedViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FeedUiState())
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
+    // Üst üste binen tazelemeleri (hızlı RESUME'lar) önlemek için tek aktif yükleme işi.
+    private var loadJob: Job? = null
+
     init {
         observeTheme()
-        load()
+        // İlk yükleme ekranın ON_RESUME'unda ([FeedIntent.Refresh]) tetiklenir; burada çağrılmaz.
     }
 
     fun onIntent(intent: FeedIntent) {
@@ -54,8 +64,13 @@ class FeedViewModel @Inject constructor(
     }
 
     private fun load() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            // İçerik zaten varsa sessiz tazele: spinner gösterme, mevcut içeriği koru (flash yok).
+            val hasContent = _uiState.value.run {
+                recentlyPlayed.isNotEmpty() || forYou.isNotEmpty() || recommendations.isNotEmpty()
+            }
+            _uiState.update { it.copy(isLoading = !hasContent, errorMessage = null) }
             try {
                 // Üç bölüm birbirinden bağımsız; paralel çekilip tek seferde state'e yazılır.
                 val recentlyPlayed = async { songRepository.getRecentlyPlayed() }
@@ -72,11 +87,16 @@ class FeedViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // Tazelemede içerik varsa koru (sessiz başarısızlık); yalnızca ilk yüklemede hata göster.
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "İçerik yüklenemedi. Lütfen tekrar deneyin.",
-                    )
+                    if (hasContent) {
+                        it.copy(isLoading = false)
+                    } else {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "İçerik yüklenemedi. Lütfen tekrar deneyin.",
+                        )
+                    }
                 }
             }
         }

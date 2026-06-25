@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -12,6 +14,11 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.turkcell.lyraapp.data.feed.SongRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.IOException
 import javax.inject.Inject
@@ -30,6 +37,11 @@ import javax.inject.Inject
  *
  * Bildirim kontrolleri Media3 varsayılanıdır: önceki / oynat-duraklat / sonraki. Talep gereği
  * favori (kalp) butonu eklenmez.
+ *
+ * **Çalma kaydı:** Player'a sahip tek yer burası olduğundan (tam ekran player, mini player ve
+ * bildirimden gelen tüm geçişleri görür), yeni bir parçaya geçildiğinde `POST /me/plays`
+ * ([SongRepository.recordPlay]) **parça başına bir kez** çağrılır. Bu, "Son Çalınanlar" ve öneri
+ * uçlarını besleyen tek sinyaldir. Range istekleri DataSource düzeyinde olduğundan burada sayılmaz.
  */
 @AndroidEntryPoint
 class PlaybackService : MediaSessionService() {
@@ -38,6 +50,24 @@ class PlaybackService : MediaSessionService() {
     lateinit var songRepository: SongRepository
 
     private var mediaSession: MediaSession? = null
+
+    // Çalma kaydı (ağ) için servis ömrü boyunca yaşayan kapsam; oynatmadan bağımsız, en iyi çaba.
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Aynı parçayı (örn. tekrar/yeniden tetik) art arda iki kez kaydetmemek için son kaydedilen id.
+    private var lastRecordedSongId: String? = null
+
+    private val playRecorder = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val songId = mediaItem?.mediaId?.takeIf { it.isNotEmpty() } ?: return
+            if (songId == lastRecordedSongId) return
+            lastRecordedSongId = songId
+            serviceScope.launch {
+                // En iyi çaba: kayıt başarısızlığı oynatmayı etkilememeli.
+                runCatching { songRepository.recordPlay(songId) }
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -66,6 +96,8 @@ class PlaybackService : MediaSessionService() {
             // Kulaklık çıkarılınca/ses başka uygulamaya geçince duraklat.
             .setHandleAudioBecomingNoisy(true)
             .build()
+        // Yeni parçaya her geçişte çalma kaydı için dinleyici (tüm oynatma yollarını kapsar).
+        player.addListener(playRecorder)
         mediaSession = MediaSession.Builder(this, player).build()
     }
 
@@ -81,7 +113,9 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         mediaSession?.run {
+            player.removeListener(playRecorder)
             player.release()
             release()
         }

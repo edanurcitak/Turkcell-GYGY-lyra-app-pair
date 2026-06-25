@@ -3,6 +3,7 @@ package com.turkcell.lyraapp.data.feed
 import com.turkcell.lyraapp.data.auth.TokenStore
 import com.turkcell.lyraapp.data.remote.MeApi
 import com.turkcell.lyraapp.data.remote.StreamingApi
+import com.turkcell.lyraapp.data.remote.dto.RecordPlayBody
 import com.turkcell.lyraapp.data.remote.dto.toDomain
 import javax.inject.Inject
 
@@ -29,6 +30,14 @@ interface SongRepository {
 
     /** "Öneriler" — `GET /api/v1/me/recommendations` (korumalı). */
     suspend fun getRecommendations(limit: Int = 20): List<Song>
+
+    /**
+     * Gerçek bir çalmayı kaydeder — `POST /api/v1/me/plays` (korumalı).
+     *
+     * "Son Çalınanlar" ve öneri uçlarını besleyen tek sinyaldir; parça başına bir kez (Range
+     * isteği başına değil) çağrılmalıdır.
+     */
+    suspend fun recordPlay(songId: String)
 }
 
 /**
@@ -59,6 +68,10 @@ class ApiSongRepository @Inject constructor(
 
     override suspend fun getRecommendations(limit: Int): List<Song> =
         meApi.getRecommendations(bearer(), limit).data.map { it.toDomain() }
+
+    override suspend fun recordPlay(songId: String) {
+        meApi.recordPlay(bearer(), RecordPlayBody(songId))
+    }
 
     /** Korumalı `me` grubu çağrıları için `Authorization` header değeri; oturum yoksa hata fırlatır. */
     private fun bearer(): String {

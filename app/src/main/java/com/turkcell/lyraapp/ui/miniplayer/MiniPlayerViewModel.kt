@@ -26,8 +26,7 @@ import javax.inject.Inject
  * [StateFlow] üzerinden [MiniPlayerUiState]'e yansıtılır. Kuyruk boşken çubuk gizlenir
  * ([MiniPlayerUiState.isVisible] = false).
  *
- * Kontroller (oynat/duraklat, sonraki) doğrudan controller'a iletilir. Kalp düğmesi yerel görsel
- * durumdur (API ucu yok, §2.2).
+ * Kontroller (önceki / oynat-duraklat / sonraki) doğrudan controller'a iletilir.
  */
 @HiltViewModel
 class MiniPlayerViewModel @Inject constructor(
@@ -65,8 +64,8 @@ class MiniPlayerViewModel @Inject constructor(
     fun onIntent(intent: MiniPlayerIntent) {
         when (intent) {
             MiniPlayerIntent.PlayPause -> controller?.let { if (it.isPlaying) it.pause() else it.play() }
+            MiniPlayerIntent.SkipPrevious -> controller?.seekToPrevious()
             MiniPlayerIntent.SkipNext -> controller?.seekToNext()
-            MiniPlayerIntent.ToggleFavorite -> _uiState.update { it.copy(isFavorite = !it.isFavorite) }
         }
     }
 

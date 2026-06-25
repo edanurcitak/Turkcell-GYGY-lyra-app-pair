@@ -24,3 +24,25 @@ data class UpdateInformationsBody(
 data class UserResponseDto(
     val data: UserDto = UserDto(),
 )
+
+/**
+ * `POST /me/plays` gövdesi: gerçek bir çalmayı kaydeder.
+ *
+ * "Son Çalınanlar" ve öneri uçlarını besleyen tek sinyaldir; parça başına bir kez (Range isteği
+ * başına değil) gönderilir.
+ */
+@Serializable
+data class RecordPlayBody(
+    val songId: String,
+)
+
+/** `POST /me/plays` yanıt zarfı: `{ data: { recorded: true } }`. */
+@Serializable
+data class RecordPlayResponseDto(
+    val data: RecordPlayDataDto = RecordPlayDataDto(),
+)
+
+@Serializable
+data class RecordPlayDataDto(
+    val recorded: Boolean = false,
+)

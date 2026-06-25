@@ -111,16 +111,11 @@ private fun MiniPlayer(
                 )
             }
 
-            // Kalp: yalnızca yerel görsel durum (API ucu yok, §2.2).
-            IconButton(onClick = { onIntent(MiniPlayerIntent.ToggleFavorite) }) {
+            IconButton(onClick = { onIntent(MiniPlayerIntent.SkipPrevious) }) {
                 Icon(
-                    imageVector = LyraIcons.Favorite,
-                    contentDescription = if (uiState.isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
-                    tint = if (uiState.isFavorite) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    imageVector = LyraIcons.SkipPrevious,
+                    contentDescription = "Önceki",
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
             IconButton(onClick = { onIntent(MiniPlayerIntent.PlayPause) }) {
@@ -175,7 +170,6 @@ private fun MiniPlayerDarkPreview() {
                         title = "Neon Sokaklar",
                         artist = "Şehir Işıkları",
                         isPlaying = true,
-                        isFavorite = true,
                         isVisible = true,
                     ),
                     onIntent = {},

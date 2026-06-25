@@ -8,16 +8,12 @@ package com.turkcell.lyraapp.ui.miniplayer
  * [androidx.media3.session.MediaController] ile bağlanarak "şu an çalan"ı yansıtır.
  *
  * [isVisible] yalnızca kuyrukta aktif bir parça varken `true`'dur; aksi halde çubuk gizlenir.
- *
- * Not (§2.2): API'da favori (kalp) ucu yoktur. [isFavorite] yalnızca yerel bir görsel durumdur —
- * kalıcı değildir, sunucuya yazılmaz (Player ekranındaki `isFavorite` ile aynı yaklaşım).
  */
 data class MiniPlayerUiState(
     val songId: String = "",
     val title: String = "",
     val artist: String = "",
     val isPlaying: Boolean = false,
-    val isFavorite: Boolean = false,
     val isVisible: Boolean = false,
 )
 
@@ -25,9 +21,9 @@ sealed interface MiniPlayerIntent {
     /** Oynat/duraklat (işlevsel — MediaController üzerinden ExoPlayer'a bağlı). */
     data object PlayPause : MiniPlayerIntent
 
+    /** Kuyrukta önceki şarkı (işlevsel — kuyruk bağlamına bağlı). */
+    data object SkipPrevious : MiniPlayerIntent
+
     /** Kuyrukta sonraki şarkı (işlevsel — kuyruk bağlamına bağlı). */
     data object SkipNext : MiniPlayerIntent
-
-    /** Kalp düğmesi: yalnızca yerel görsel durum (API ucu yok, §2.2). */
-    data object ToggleFavorite : MiniPlayerIntent
 }

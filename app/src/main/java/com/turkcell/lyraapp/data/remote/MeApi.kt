@@ -1,5 +1,7 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.RecordPlayBody
+import com.turkcell.lyraapp.data.remote.dto.RecordPlayResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.UpdateInformationsBody
 import com.turkcell.lyraapp.data.remote.dto.UserResponseDto
@@ -62,4 +64,14 @@ interface MeApi {
         @Header("Authorization") authorization: String,
         @Query("limit") limit: Int = 20,
     ): SongsResponseDto
+
+    /**
+     * Gerçek bir çalmayı kaydeder — "Son Çalınanlar" ve öneri uçlarını besleyen tek sinyaldir.
+     * Parça başına bir kez çağrılır (Range isteği başına değil).
+     */
+    @POST("api/v1/me/plays")
+    suspend fun recordPlay(
+        @Header("Authorization") authorization: String,
+        @Body body: RecordPlayBody,
+    ): RecordPlayResponseDto
 }

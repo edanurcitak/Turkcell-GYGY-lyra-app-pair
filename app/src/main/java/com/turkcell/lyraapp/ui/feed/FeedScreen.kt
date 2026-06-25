@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.ui.icons.LyraIcons
@@ -56,6 +58,11 @@ fun FeedScreen(
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Ekran her öne geldiğinde (sekme dönüşü / player'dan dönüş) içeriği tazele; böylece yeni
+    // çalmalar "Son çalınanlar"a yansır. Tazeleme sessizdir — mevcut içerik gizlenmez (bkz. VM).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.onIntent(FeedIntent.Refresh)
+    }
     FeedScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
