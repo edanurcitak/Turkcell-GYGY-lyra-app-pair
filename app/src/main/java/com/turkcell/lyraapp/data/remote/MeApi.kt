@@ -1,5 +1,9 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.AdCompleteBody
+import com.turkcell.lyraapp.data.remote.dto.AdCompleteResponseDto
+import com.turkcell.lyraapp.data.remote.dto.PlaybackNextBody
+import com.turkcell.lyraapp.data.remote.dto.PlaybackNextResponseDto
 import com.turkcell.lyraapp.data.remote.dto.RecordPlayBody
 import com.turkcell.lyraapp.data.remote.dto.RecordPlayResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
@@ -74,4 +78,26 @@ interface MeApi {
         @Header("Authorization") authorization: String,
         @Body body: RecordPlayBody,
     ): RecordPlayResponseDto
+
+    /**
+     * Free akış için "sıradaki ne çalınmalı?" — şarkı ya da (3'te 1) önce reklam döndürür.
+     *
+     * Bu uç çalmayı **kendisi kaydeder**; bu nedenle bunu kullanan istemci ayrıca [recordPlay]
+     * çağırmaz. Premium hesaplar bunun yerine doğrudan `songs/{id}/stream-url` kullanır.
+     */
+    @POST("api/v1/me/playback/next")
+    suspend fun playbackNext(
+        @Header("Authorization") authorization: String,
+        @Body body: PlaybackNextBody,
+    ): PlaybackNextResponseDto
+
+    /**
+     * Sunulan reklamın tamamlandığını bildirir (analytics). `type: "ad"` yanıtındaki
+     * `impressionId` geçirilir.
+     */
+    @POST("api/v1/me/playback/ad-complete")
+    suspend fun adComplete(
+        @Header("Authorization") authorization: String,
+        @Body body: AdCompleteBody,
+    ): AdCompleteResponseDto
 }

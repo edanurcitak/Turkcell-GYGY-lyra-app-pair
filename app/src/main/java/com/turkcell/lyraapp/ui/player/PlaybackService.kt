@@ -2,6 +2,7 @@ package com.turkcell.lyraapp.ui.player
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -14,7 +15,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.turkcell.lyraapp.data.feed.SongRepository
+import com.turkcell.lyraapp.data.membership.MembershipStore
+import com.turkcell.lyraapp.data.playback.PlaybackRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +62,18 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var mediaCache: SimpleCache
 
+    // Free akış (playback/next + reklam) için oynatma kararı.
+    @Inject
+    lateinit var playbackRepository: PlaybackRepository
+
+    // Tier (free/premium): çalma kaydının (/me/plays) yalnızca premium'da yapılmasını sağlar.
+    @Inject
+    lateinit var membershipStore: MembershipStore
+
     private var mediaSession: MediaSession? = null
+
+    // Free akış orkestratörü (ForwardingPlayer + playback/next + reklam + oto-geçiş).
+    private var freeController: FreePlaybackController? = null
 
     // Çalma kaydı (ağ) için servis ömrü boyunca yaşayan kapsam; oynatmadan bağımsız, en iyi çaba.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -65,6 +83,8 @@ class PlaybackService : MediaSessionService() {
 
     private val playRecorder = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // Çalma kaydı yalnızca premium'da: free akışta `playback/next` zaten kaydeder.
+            if (!membershipStore.isPremium) return
             val songId = mediaItem?.mediaId?.takeIf { it.isNotEmpty() } ?: return
             if (songId == lastRecordedSongId) return
             lastRecordedSongId = songId
@@ -75,11 +95,55 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
+    /**
+     * Session geri çağrıları: free kuyruğu başlatan custom komutu ([PlaybackCommands.COMMAND_PLAY_FREE])
+     * yayınlar ve işler. Diğer komutlar varsayılan davranışla reddedilir.
+     */
+    private val sessionCallback = object : MediaSession.Callback {
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(SessionCommand(PlaybackCommands.COMMAND_PLAY_FREE, Bundle.EMPTY))
+                .add(SessionCommand(PlaybackCommands.COMMAND_FREE_NEXT, Bundle.EMPTY))
+                .build()
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(sessionCommands)
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            when (customCommand.customAction) {
+                PlaybackCommands.COMMAND_PLAY_FREE -> {
+                    val parsed = PlaybackCommands.parsePlayFree(args)
+                    freeController?.startFree(parsed.tracks, parsed.startIndex)
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+
+                PlaybackCommands.COMMAND_FREE_NEXT -> {
+                    freeController?.next()
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+            }
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
 
-        // `lyra://song/<id>` URI'sindeki şarkı id'sini, çalma anında gerçek imzalı URL'e çevirir.
+        // `lyra://song/<id>` yer tutucusunu, çalma anında gerçek imzalı URL'e çevirir (premium yolu).
+        // Free akışın öğeleri `playback/next`'ten gelen ZATEN ÇÖZÜLMÜŞ gerçek http(s) URL'leri taşır;
+        // bunlar premium-only `stream-url`'e geri çevrilmemeli (aksi halde free 403 alır). Bu yüzden
+        // yalnızca `lyra` şemalı URI'ler çözülür; diğerleri olduğu gibi geçer.
         val resolver = ResolvingDataSource.Resolver { dataSpec ->
+            if (dataSpec.uri.scheme != LYRA_URI_SCHEME) return@Resolver dataSpec
             val songId = dataSpec.uri.lastPathSegment.orEmpty()
             val url = try {
                 runBlocking { songRepository.getStreamUrl(songId).url }
@@ -112,9 +176,18 @@ class PlaybackService : MediaSessionService() {
             // Kulaklık çıkarılınca/ses başka uygulamaya geçince duraklat.
             .setHandleAudioBecomingNoisy(true)
             .build()
-        // Yeni parçaya her geçişte çalma kaydı için dinleyici (tüm oynatma yollarını kapsar).
+        // Yeni parçaya her geçişte çalma kaydı için dinleyici (premium; tüm oynatma yollarını kapsar).
         player.addListener(playRecorder)
-        mediaSession = MediaSession.Builder(this, player).build()
+
+        // Free akış orkestrasyonu: ExoPlayer'ı ForwardingPlayer ile sarar (next/prev + reklam + oto-geçiş).
+        val controller = FreePlaybackController(player, playbackRepository)
+        freeController = controller
+
+        // Session, kontrolcülerin (tam/mini player, bildirim) free davranışını şeffaf alması için
+        // ForwardingPlayer ile kurulur; free kuyruğu custom komutu sessionCallback ile işlenir.
+        mediaSession = MediaSession.Builder(this, controller.player)
+            .setCallback(sessionCallback)
+            .build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
@@ -130,6 +203,9 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        // Önce free orkestratörünün dinleyicisini/kapsamını bırak; oynatıcıyı session serbest bırakır.
+        freeController?.release()
+        freeController = null
         mediaSession?.run {
             player.removeListener(playRecorder)
             player.release()
@@ -137,5 +213,10 @@ class PlaybackService : MediaSessionService() {
         }
         mediaSession = null
         super.onDestroy()
+    }
+
+    private companion object {
+        // `lyra://song/<id>` yer tutucu şeması; yalnızca bu şema resolver ile çözülür.
+        const val LYRA_URI_SCHEME = "lyra"
     }
 }

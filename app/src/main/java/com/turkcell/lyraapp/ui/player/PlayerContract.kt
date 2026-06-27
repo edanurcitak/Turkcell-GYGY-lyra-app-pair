@@ -24,6 +24,10 @@ data class PlayerUiState(
     val isPremium: Boolean = false,
     /** Free hesap indirmeyi denediğinde gösterilen "Premium gerekli" ipucu. */
     val showPremiumHint: Boolean = false,
+    /** Şu an bir reklam mı çalıyor (free akış; ileri/geri ve seek bu sırada kapalı). */
+    val isAd: Boolean = false,
+    /** Reklam çalarken reklamveren adı ("Reklam · <reklamveren>" etiketi için). */
+    val adAdvertiser: String = "",
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )

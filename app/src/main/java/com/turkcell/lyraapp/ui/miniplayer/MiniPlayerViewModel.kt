@@ -2,12 +2,16 @@ package com.turkcell.lyraapp.ui.miniplayer
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.turkcell.lyraapp.data.membership.MembershipStore
+import com.turkcell.lyraapp.ui.player.PlaybackCommands
 import com.turkcell.lyraapp.ui.player.PlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,6 +35,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MiniPlayerViewModel @Inject constructor(
     @ApplicationContext context: Context,
+    private val membershipStore: MembershipStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MiniPlayerUiState())
@@ -65,7 +70,23 @@ class MiniPlayerViewModel @Inject constructor(
         when (intent) {
             MiniPlayerIntent.PlayPause -> controller?.let { if (it.isPlaying) it.pause() else it.play() }
             MiniPlayerIntent.SkipPrevious -> controller?.seekToPrevious()
-            MiniPlayerIntent.SkipNext -> controller?.seekToNext()
+            MiniPlayerIntent.SkipNext -> skipNext()
+        }
+    }
+
+    /**
+     * "Sonraki": premium yerel `seekToNext` ile; free akışta tek-parçalık kuyrukta bu komut
+     * kontrolcüde düşürüldüğünden custom komutla servise gider (bkz. tam ekran PlayerViewModel).
+     */
+    private fun skipNext() {
+        val c = controller ?: return
+        if (membershipStore.isPremium) {
+            c.seekToNext()
+        } else {
+            c.sendCustomCommand(
+                SessionCommand(PlaybackCommands.COMMAND_FREE_NEXT, Bundle.EMPTY),
+                Bundle.EMPTY,
+            )
         }
     }
 

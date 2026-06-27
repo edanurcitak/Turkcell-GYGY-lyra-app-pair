@@ -8,6 +8,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.net.Uri
+import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -16,6 +17,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.turkcell.lyraapp.data.download.DownloadRepository
@@ -125,10 +127,27 @@ class PlayerViewModel @Inject constructor(
         when (intent) {
             PlayerIntent.PlayPause -> controller?.let { if (it.isPlaying) it.pause() else it.play() }
             is PlayerIntent.SeekTo -> controller?.seekTo(intent.positionMs)
-            PlayerIntent.SkipNext -> controller?.seekToNext()
+            PlayerIntent.SkipNext -> skipNext()
             PlayerIntent.SkipPrevious -> controller?.seekToPrevious()
             PlayerIntent.Download -> onDownloadClicked()
             PlayerIntent.Retry -> load()
+        }
+    }
+
+    /**
+     * "Sonraki": premium yerel kuyrukta [MediaController.seekToNext] ile ilerler. Free akışta kuyruk
+     * tek parça olduğundan seekToNext kontrolcüde düşürülür; bu yüzden custom komutla servise gider
+     * (bkz. [FreePlaybackController]). Önceki yön her iki tier'da yerel çalışır.
+     */
+    private fun skipNext() {
+        val c = controller ?: return
+        if (membershipStore.isPremium) {
+            c.seekToNext()
+        } else {
+            c.sendCustomCommand(
+                SessionCommand(PlaybackCommands.COMMAND_FREE_NEXT, Bundle.EMPTY),
+                Bundle.EMPTY,
+            )
         }
     }
 
@@ -198,13 +217,17 @@ class PlayerViewModel @Inject constructor(
     /** Aktif parçanın meta verisini (id/başlık/sanatçı) UI'a yansıtır (kapak songId'den türer). */
     private fun syncCurrentItem(mediaItem: MediaItem?) {
         val item = mediaItem ?: return
+        // Reklam öğesi (free akış): mediaId "ad:" önekli; bunu şarkı gibi işleme (kapak/indirme).
+        val isAd = item.mediaId.startsWith(PlaybackCommands.AD_MEDIA_ID_PREFIX)
         _uiState.update {
-            val newSongId = item.mediaId.ifEmpty { it.songId }
+            val newSongId = if (isAd) it.songId else item.mediaId.ifEmpty { it.songId }
             it.copy(
                 songId = newSongId,
                 title = item.mediaMetadata.title?.toString() ?: it.title,
                 artist = item.mediaMetadata.artist?.toString() ?: it.artist,
-                isDownloaded = downloadStore.isDownloaded(newSongId),
+                isAd = isAd,
+                adAdvertiser = if (isAd) item.mediaMetadata.artist?.toString().orEmpty() else "",
+                isDownloaded = if (isAd) it.isDownloaded else downloadStore.isDownloaded(newSongId),
             )
         }
     }
@@ -248,18 +271,13 @@ class PlayerViewModel @Inject constructor(
                 currentSongs = songs
                 val startIndex = songs.indexOfFirst { it.id == songId }.coerceAtLeast(0)
 
-                // Başlangıç parçasının kapağını senkron üret (hızlı başlasın); gerisi arka planda.
-                val startArtwork = withContext(Dispatchers.Default) { artworkPng(songs[startIndex].id) }
-                val items = songs.mapIndexed { index, song ->
-                    buildQueueItem(song, artwork = if (index == startIndex) startArtwork else null)
+                // Tier'a göre dallan: premium tembel stream-url kuyruğu, free servis-tarafı playback/next.
+                if (membershipStore.isPremium) {
+                    playPremiumQueue(c, songs, startIndex)
+                } else {
+                    playFreeQueue(c, songs, startIndex)
                 }
-
-                c.setMediaItems(items, startIndex, 0L)
-                c.prepare()
-                c.play()
                 _uiState.update { it.copy(isLoading = false) }
-                syncCurrentItem(c.currentMediaItem)
-                fillRemainingArtwork(songs, startIndex)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -271,6 +289,35 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Premium: stream-url ile tembel çözülen tam kuyruk (mevcut davranış). Başlangıç kapağı senkron
+     * üretilir (hızlı başlasın), gerisi arka planda doldurulur.
+     */
+    private suspend fun playPremiumQueue(c: MediaController, songs: List<Song>, startIndex: Int) {
+        val startArtwork = withContext(Dispatchers.Default) { artworkPng(songs[startIndex].id) }
+        val items = songs.mapIndexed { index, song ->
+            buildQueueItem(song, artwork = if (index == startIndex) startArtwork else null)
+        }
+        c.setMediaItems(items, startIndex, 0L)
+        c.prepare()
+        c.play()
+        syncCurrentItem(c.currentMediaItem)
+        fillRemainingArtwork(songs, startIndex)
+    }
+
+    /**
+     * Free: kuyruğu servise custom komutla geçirir; servis her şarkıyı `playback/next` ile (gerekirse
+     * önce reklam) çözüp çalar (bkz. [FreePlaybackController]). Aktif öğe servis tarafında ayarlanınca
+     * UI [onMediaItemTransition] üzerinden senkron olur.
+     */
+    private fun playFreeQueue(c: MediaController, songs: List<Song>, startIndex: Int) {
+        val tracks = songs.map { FreeTrack(id = it.id, title = it.title, artist = it.artist) }
+        c.sendCustomCommand(
+            SessionCommand(PlaybackCommands.COMMAND_PLAY_FREE, Bundle.EMPTY),
+            PlaybackCommands.playFreeArgs(tracks, startIndex),
+        )
     }
 
     /** Kuyruk kaynağına göre şarkı listesini getirir (Feed kataloğu veya çalma listesi). */

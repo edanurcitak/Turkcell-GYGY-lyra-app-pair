@@ -130,6 +130,10 @@ private fun PlayerScreen(
                 onToggleFavorite = { /* §talep: favori şimdilik boş */ },
                 onDownload = { onIntent(PlayerIntent.Download) },
             )
+            if (uiState.isAd) {
+                Spacer(Modifier.height(8.dp))
+                AdBadge(advertiser = uiState.adAdvertiser)
+            }
             if (uiState.showPremiumHint) {
                 Spacer(Modifier.height(8.dp))
                 PremiumHint()
@@ -140,6 +144,8 @@ private fun PlayerScreen(
             Controls(
                 isPlaying = uiState.isPlaying,
                 isLoading = uiState.isLoading,
+                // Reklam çalarken atlanamaz: önceki/sonraki kapalı.
+                skipEnabled = !uiState.isAd,
                 onPlayPause = { onIntent(PlayerIntent.PlayPause) },
                 onSkipPrevious = { onIntent(PlayerIntent.SkipPrevious) },
                 onSkipNext = { onIntent(PlayerIntent.SkipNext) },
@@ -322,6 +328,17 @@ private fun PremiumHint() {
     )
 }
 
+/** Free akışta reklam çalarken gösterilen "Reklam · <reklamveren>" etiketi. */
+@Composable
+private fun AdBadge(advertiser: String) {
+    Text(
+        text = if (advertiser.isBlank()) "Reklam" else "Reklam · $advertiser",
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
 @Composable
 private fun ProgressSection(
     uiState: PlayerUiState,
@@ -349,7 +366,8 @@ private fun ProgressSection(
                 dragging = false
                 onIntent(PlayerIntent.SeekTo((dragFraction * uiState.durationMs).toLong()))
             },
-            enabled = uiState.durationMs > 0L,
+            // Reklam çalarken seek kapalı (atlanamaz).
+            enabled = uiState.durationMs > 0L && !uiState.isAd,
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -376,6 +394,7 @@ private fun ProgressSection(
 private fun Controls(
     isPlaying: Boolean,
     isLoading: Boolean,
+    skipEnabled: Boolean,
     onPlayPause: () -> Unit,
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
@@ -396,6 +415,7 @@ private fun Controls(
             contentDescription = "Önceki",
             tint = MaterialTheme.colorScheme.onSurface,
             iconSize = 36.dp,
+            enabled = skipEnabled,
             onClick = onSkipPrevious,
         )
         PlayPauseButton(isPlaying = isPlaying, isLoading = isLoading, onClick = onPlayPause)
@@ -404,6 +424,7 @@ private fun Controls(
             contentDescription = "Sonraki",
             tint = MaterialTheme.colorScheme.onSurface,
             iconSize = 36.dp,
+            enabled = skipEnabled,
             onClick = onSkipNext,
         )
         ControlIcon(
@@ -425,13 +446,14 @@ private fun ControlIcon(
     contentDescription: String,
     tint: Color,
     iconSize: Dp,
+    enabled: Boolean = true,
     onClick: () -> Unit = {},
 ) {
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, enabled = enabled) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = tint,
+            tint = if (enabled) tint else tint.copy(alpha = 0.38f),
             modifier = Modifier.size(iconSize),
         )
     }
