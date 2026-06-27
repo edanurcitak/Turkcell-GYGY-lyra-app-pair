@@ -22,7 +22,31 @@ data class User(
     val lastName: String? = null,
     val birthDate: String? = null,
     val profileCompleted: Boolean = false,
+    val membership: Membership? = null,
 )
+
+/**
+ * Premium üyelik bilgisi (API `Membership` şeması — bkz. `docs/api/openapi.json`).
+ *
+ * Tier KAYNAĞI API'dir (§2.2 — istemci hesaplamaz/uydurmaz): free hesapta [User.membership]
+ * `null`'dır, premium hesapta dolu gelir. Aktiflik [isActive] ile belirlenir; yetki zaten sunucu
+ * tarafında zorlanır (ör. `stream-url` free'ye 403), istemci yalnızca aynalar.
+ */
+data class Membership(
+    /** "one-time" | "recurring". */
+    val type: String,
+    /** "active" | "expired". */
+    val status: String,
+    val expiresAt: String? = null,
+) {
+    /** Üyelik aktif mi (premium erişim sürüyor mu). */
+    val isActive: Boolean
+        get() = status.equals("active", ignoreCase = true)
+}
+
+/** Kullanıcı premium mi (aktif üyeliği var mı). */
+val User.isPremium: Boolean
+    get() = membership?.isActive == true
 
 /**
  * JWT erişim token'ı + opak yenileme (refresh) token'ı.

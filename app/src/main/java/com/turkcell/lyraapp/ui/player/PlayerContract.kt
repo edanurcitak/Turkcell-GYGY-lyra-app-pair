@@ -20,6 +20,10 @@ data class PlayerUiState(
     val isFavorite: Boolean = false,
     val isDownloaded: Boolean = false,
     val isDownloading: Boolean = false,
+    /** Premium hesap mı (tier kaynağı API; indir butonunun açık/kilitli durumunu sürer). */
+    val isPremium: Boolean = false,
+    /** Free hesap indirmeyi denediğinde gösterilen "Premium gerekli" ipucu. */
+    val showPremiumHint: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )

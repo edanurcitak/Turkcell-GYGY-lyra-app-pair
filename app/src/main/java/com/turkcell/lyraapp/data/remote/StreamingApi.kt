@@ -5,6 +5,7 @@ import com.turkcell.lyraapp.data.remote.dto.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.StreamUrlResponseDto
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -32,9 +33,16 @@ interface StreamingApi {
 
     /**
      * Bir şarkı için kısa ömürlü imzalı akış URL'i üretir (oynatmadan hemen önce çağrılır).
+     *
+     * **Premium-only ve korumalı** (bkz. `docs/api/openapi.json`): `Authorization: Bearer` zorunlu;
+     * free hesap **403** alır (free akış `me/playback/next` üzerinden gider). Token
+     * [com.turkcell.lyraapp.data.auth.TokenStore]'dan okunur, çağrı başına [Header] ile geçirilir.
      */
     @GET("api/v1/songs/{id}/stream-url")
-    suspend fun getStreamUrl(@Path("id") songId: String): StreamUrlResponseDto
+    suspend fun getStreamUrl(
+        @Header("Authorization") authorization: String,
+        @Path("id") songId: String,
+    ): StreamUrlResponseDto
 
     /**
      * Tüm çalma listelerini (şarkısız) döndürür.

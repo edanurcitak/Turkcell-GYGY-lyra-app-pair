@@ -58,7 +58,8 @@ class ApiSongRepository @Inject constructor(
         api.getSongs().data.map { it.toDomain() }
 
     override suspend fun getStreamUrl(songId: String): StreamUrl =
-        api.getStreamUrl(songId).data.toDomain()
+        // Premium-only korumalı uç: Bearer zorunlu (free hesap 403 alır).
+        api.getStreamUrl(bearer(), songId).data.toDomain()
 
     override suspend fun getRecentlyPlayed(limit: Int): List<Song> =
         meApi.getRecentlyPlayed(bearer(), limit).data.map { it.toDomain() }

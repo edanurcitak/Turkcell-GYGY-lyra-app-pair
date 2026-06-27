@@ -20,8 +20,10 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.turkcell.lyraapp.data.download.DownloadRepository
 import com.turkcell.lyraapp.data.download.DownloadStore
+import com.turkcell.lyraapp.data.download.PremiumRequiredException
 import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.data.feed.SongRepository
+import com.turkcell.lyraapp.data.membership.MembershipStore
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
 import com.turkcell.lyraapp.ui.navigation.LyraDestinations
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,6 +68,7 @@ class PlayerViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val downloadRepository: DownloadRepository,
     private val downloadStore: DownloadStore,
+    private val membershipStore: MembershipStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -100,6 +103,7 @@ class PlayerViewModel @Inject constructor(
 
     init {
         observeDownloads()
+        observePremium()
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val future = MediaController.Builder(context, token).buildAsync()
         controllerFuture = future
@@ -123,8 +127,17 @@ class PlayerViewModel @Inject constructor(
             is PlayerIntent.SeekTo -> controller?.seekTo(intent.positionMs)
             PlayerIntent.SkipNext -> controller?.seekToNext()
             PlayerIntent.SkipPrevious -> controller?.seekToPrevious()
-            PlayerIntent.Download -> downloadCurrentSong()
+            PlayerIntent.Download -> onDownloadClicked()
             PlayerIntent.Retry -> load()
+        }
+    }
+
+    /** İndir aksiyonu: premium ise indir, free ise "Premium gerekli" ipucunu göster. */
+    private fun onDownloadClicked() {
+        if (membershipStore.isPremium) {
+            downloadCurrentSong()
+        } else {
+            _uiState.update { it.copy(showPremiumHint = true) }
         }
     }
 
@@ -135,6 +148,15 @@ class PlayerViewModel @Inject constructor(
                 _uiState.update { state ->
                     state.copy(isDownloaded = downloads.any { it.id == state.songId })
                 }
+            }
+        }
+    }
+
+    /** Tier'ı (free/premium) UI'a yansıtır; kaynak API (bkz. [MembershipStore]). */
+    private fun observePremium() {
+        viewModelScope.launch {
+            membershipStore.isPremiumFlow.collect { premium ->
+                _uiState.update { it.copy(isPremium = premium) }
             }
         }
     }
@@ -159,6 +181,11 @@ class PlayerViewModel @Inject constructor(
             try {
                 downloadRepository.download(song)
                 _uiState.update { it.copy(isDownloading = false, isDownloaded = true) }
+            } catch (e: PremiumRequiredException) {
+                // Savunma: tier'ın nihai otoritesi sunucu — 403 ise free'ye düş ve upsell göster.
+                _uiState.update {
+                    it.copy(isDownloading = false, isPremium = false, showPremiumHint = true)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

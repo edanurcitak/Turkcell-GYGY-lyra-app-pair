@@ -126,9 +126,14 @@ private fun PlayerScreen(
                 isFavorite = uiState.isFavorite,
                 isDownloaded = uiState.isDownloaded,
                 isDownloading = uiState.isDownloading,
+                isPremium = uiState.isPremium,
                 onToggleFavorite = { /* §talep: favori şimdilik boş */ },
                 onDownload = { onIntent(PlayerIntent.Download) },
             )
+            if (uiState.showPremiumHint) {
+                Spacer(Modifier.height(8.dp))
+                PremiumHint()
+            }
             Spacer(Modifier.height(20.dp))
             ProgressSection(uiState = uiState, onIntent = onIntent)
             Spacer(Modifier.height(24.dp))
@@ -218,6 +223,7 @@ private fun NowPlayingInfo(
     isFavorite: Boolean,
     isDownloaded: Boolean,
     isDownloading: Boolean,
+    isPremium: Boolean,
     onToggleFavorite: () -> Unit,
     onDownload: () -> Unit,
 ) {
@@ -241,6 +247,7 @@ private fun NowPlayingInfo(
             )
         }
         DownloadButton(
+            isPremium = isPremium,
             isDownloaded = isDownloaded,
             isDownloading = isDownloading,
             onDownload = onDownload,
@@ -257,11 +264,15 @@ private fun NowPlayingInfo(
 }
 
 /**
- * Kalbin yanındaki "İndir" butonu. Üç durum: indiriliyor (ilerleme halkası), indirildi (onay,
- * tıklanamaz) ve indirilebilir (indirme ikonu). İndirme tamamlanınca state üzerinden onay'a döner.
+ * Kalbin yanındaki "İndir" butonu. Durumlar: indiriliyor (ilerleme halkası), indirildi (onay),
+ * free (kilit → tıklayınca "Premium gerekli" ipucu) ve premium-indirilebilir (indirme ikonu).
+ *
+ * Çevrimdışı indirme premium'a özel olduğundan (tier kaynağı API), free hesapta buton kilit
+ * gösterir ama tıklanabilir kalır; tıklama [onDownload] → ViewModel ipucunu açar.
  */
 @Composable
 private fun DownloadButton(
+    isPremium: Boolean,
     isDownloaded: Boolean,
     isDownloading: Boolean,
     onDownload: () -> Unit,
@@ -284,6 +295,13 @@ private fun DownloadButton(
                 modifier = Modifier.size(28.dp),
             )
 
+            !isPremium -> Icon(
+                imageVector = LyraIcons.Lock,
+                contentDescription = "Premium gerekli",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+
             else -> Icon(
                 imageVector = LyraIcons.Download,
                 contentDescription = "İndir",
@@ -292,6 +310,16 @@ private fun DownloadButton(
             )
         }
     }
+}
+
+/** Free hesap indirmeyi denediğinde gösterilen kısa upsell satırı. */
+@Composable
+private fun PremiumHint() {
+    Text(
+        text = "Çevrimdışı indirme Premium üyelere özeldir.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable

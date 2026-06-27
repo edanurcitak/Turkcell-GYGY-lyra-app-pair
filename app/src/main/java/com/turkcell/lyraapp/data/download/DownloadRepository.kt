@@ -8,9 +8,20 @@ import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.SimpleCache
 import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.data.feed.SongRepository
+import com.turkcell.lyraapp.data.membership.MembershipStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 import javax.inject.Inject
+
+/**
+ * Free hesap, premium'a özel çevrimdışı indirmeyi denediğinde fırlatılır.
+ *
+ * İki yerde oluşur: (1) istemci tier kontrolü ([MembershipStore.isPremium] false) — ağ isteği bile
+ * yapılmaz; (2) savunma amaçlı, sunucu `stream-url`'e **403** dönerse (tier'ın nihai otoritesi
+ * sunucudur). UI bunu "Premium gerekli" ipucuna çevirir.
+ */
+class PremiumRequiredException : Exception("Çevrimdışı indirme Premium üyelere özeldir.")
 
 /**
  * İndirme verisinin domain arayüzü (SongRepository/PlaylistRepository ile aynı kalıp).
@@ -46,12 +57,20 @@ class MediaDownloadRepository @Inject constructor(
     private val cache: SimpleCache,
     private val songRepository: SongRepository,
     private val downloadStore: DownloadStore,
+    private val membershipStore: MembershipStore,
 ) : DownloadRepository {
 
     override suspend fun download(song: Song): Unit = withContext(Dispatchers.IO) {
+        // Tier kapısı: çevrimdışı indirme premium'a özel (tier kaynağı API; bkz. MembershipStore).
+        if (!membershipStore.isPremium) throw PremiumRequiredException()
         if (downloadStore.isDownloaded(song.id)) return@withContext
 
-        val streamUrl = songRepository.getStreamUrl(song.id).url
+        // Savunma: sunucu tier'ın nihai otoritesi — free için stream-url 403 döner.
+        val streamUrl = try {
+            songRepository.getStreamUrl(song.id).url
+        } catch (e: HttpException) {
+            if (e.code() == 403) throw PremiumRequiredException() else throw e
+        }
         val dataSpec = DataSpec.Builder()
             .setUri(Uri.parse(streamUrl))
             // Cache key = songId → oynatma ile aynı anahtar; imzalı URL değişse de eşleşir.

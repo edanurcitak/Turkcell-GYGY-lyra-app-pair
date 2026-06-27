@@ -8,6 +8,7 @@ import com.turkcell.lyraapp.data.remote.dto.OtpVerifyBody
 import com.turkcell.lyraapp.data.remote.dto.RefreshBody
 import com.turkcell.lyraapp.data.remote.dto.UpdateInformationsBody
 import com.turkcell.lyraapp.data.remote.dto.toDomain
+import com.turkcell.lyraapp.data.membership.MembershipStore
 import javax.inject.Inject
 
 /**
@@ -55,6 +56,7 @@ class ApiOtpAuthRepository @Inject constructor(
     private val api: AuthApi,
     private val meApi: MeApi,
     private val tokenStore: TokenStore,
+    private val membershipStore: MembershipStore,
 ) : OtpAuthRepository {
 
     override suspend fun requestOtp(phone: String): Result<OtpRequestResult> = runCatching {
@@ -68,6 +70,8 @@ class ApiOtpAuthRepository @Inject constructor(
             accessToken = session.tokens.accessToken,
             refreshToken = session.tokens.refreshToken,
         )
+        // Tier'ı API yanıtından aynalama (free/premium); §2.2 — istemci hesaplamaz.
+        membershipStore.setFromUser(session.user)
         session
     }
 
@@ -100,5 +104,6 @@ class ApiOtpAuthRepository @Inject constructor(
         // Sunucuda iptal et (varsa); idempotent olduğundan bilinmeyen token da sorun değil.
         tokenStore.refreshToken?.let { api.logout(LogoutBody(refreshToken = it)) }
         tokenStore.clear()
+        membershipStore.clear()
     }
 }

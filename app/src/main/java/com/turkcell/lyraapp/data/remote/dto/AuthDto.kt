@@ -2,6 +2,7 @@ package com.turkcell.lyraapp.data.remote.dto
 
 import com.turkcell.lyraapp.data.auth.AuthSession
 import com.turkcell.lyraapp.data.auth.AuthTokens
+import com.turkcell.lyraapp.data.auth.Membership
 import com.turkcell.lyraapp.data.auth.User
 import kotlinx.serialization.Serializable
 
@@ -117,6 +118,19 @@ data class UserDto(
     val birthDate: String? = null,
     val createdAt: String? = null,
     val profileCompleted: Boolean = false,
+    /** Aktif premium üyelik veya free hesapta `null` (tier kaynağı; bkz. openapi `User.membership`). */
+    val membership: MembershipDto? = null,
+)
+
+/** API `Membership` şeması (bkz. `docs/api/openapi.json`). Free hesapta gelmez (`null`). */
+@Serializable
+data class MembershipDto(
+    val planId: String = "",
+    val type: String = "",
+    val status: String = "",
+    val autoRenew: Boolean = false,
+    val startedAt: String? = null,
+    val expiresAt: String? = null,
 )
 
 // --- DTO → domain dönüşümleri ---
@@ -130,6 +144,14 @@ fun UserDto.toDomain(): User = User(
     lastName = lastName,
     birthDate = birthDate,
     profileCompleted = profileCompleted,
+    membership = membership?.toDomain(),
+)
+
+/** DTO → domain [Membership]. */
+fun MembershipDto.toDomain(): Membership = Membership(
+    type = type,
+    status = status,
+    expiresAt = expiresAt,
 )
 
 /** DTO → domain [AuthTokens]. */
