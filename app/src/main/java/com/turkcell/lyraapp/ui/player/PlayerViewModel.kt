@@ -18,6 +18,8 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.turkcell.lyraapp.data.download.DownloadRepository
+import com.turkcell.lyraapp.data.download.DownloadStore
 import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
@@ -62,6 +64,8 @@ class PlayerViewModel @Inject constructor(
     @ApplicationContext context: Context,
     private val songRepository: SongRepository,
     private val playlistRepository: PlaylistRepository,
+    private val downloadRepository: DownloadRepository,
+    private val downloadStore: DownloadStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -81,6 +85,9 @@ class PlayerViewModel @Inject constructor(
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 
+    // İndir intent'inde tam Song'u (albüm/süre dahil) bulabilmek için en son yüklenen kuyruk.
+    private var currentSongs: List<Song> = emptyList()
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _uiState.update { it.copy(isPlaying = isPlaying) }
@@ -92,6 +99,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     init {
+        observeDownloads()
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val future = MediaController.Builder(context, token).buildAsync()
         controllerFuture = future
@@ -110,13 +118,53 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun onIntent(intent: PlayerIntent) {
-        val c = controller ?: return
         when (intent) {
-            PlayerIntent.PlayPause -> if (c.isPlaying) c.pause() else c.play()
-            is PlayerIntent.SeekTo -> c.seekTo(intent.positionMs)
-            PlayerIntent.SkipNext -> c.seekToNext()
-            PlayerIntent.SkipPrevious -> c.seekToPrevious()
+            PlayerIntent.PlayPause -> controller?.let { if (it.isPlaying) it.pause() else it.play() }
+            is PlayerIntent.SeekTo -> controller?.seekTo(intent.positionMs)
+            PlayerIntent.SkipNext -> controller?.seekToNext()
+            PlayerIntent.SkipPrevious -> controller?.seekToPrevious()
+            PlayerIntent.Download -> downloadCurrentSong()
             PlayerIntent.Retry -> load()
+        }
+    }
+
+    /** [DownloadStore] değiştikçe aktif şarkının indirilme durumunu UI'a yansıtır. */
+    private fun observeDownloads() {
+        viewModelScope.launch {
+            downloadStore.downloads.collect { downloads ->
+                _uiState.update { state ->
+                    state.copy(isDownloaded = downloads.any { it.id == state.songId })
+                }
+            }
+        }
+    }
+
+    /**
+     * Aktif şarkıyı cihaza indirir. Tam meta veriyi (albüm/süre) yüklü kuyruktan alır; bulunamazsa
+     * UI'daki bilgiyle (süreyi controller'dan) bir [Song] kurar. İndirme hatası oynatmayı etkilemez.
+     */
+    private fun downloadCurrentSong() {
+        val state = _uiState.value
+        if (state.isDownloaded || state.isDownloading || state.songId.isEmpty()) return
+        val song = currentSongs.firstOrNull { it.id == state.songId }
+            ?: Song(
+                id = state.songId,
+                title = state.title,
+                artist = state.artist,
+                album = null,
+                durationMs = controller?.duration?.takeIf { it > 0L } ?: 0L,
+            )
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDownloading = true) }
+            try {
+                downloadRepository.download(song)
+                _uiState.update { it.copy(isDownloading = false, isDownloaded = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // En iyi çaba: indirme başarısızlığı yalnızca durumu sıfırlar, oynatmayı bozmaz.
+                _uiState.update { it.copy(isDownloading = false) }
+            }
         }
     }
 
@@ -124,10 +172,12 @@ class PlayerViewModel @Inject constructor(
     private fun syncCurrentItem(mediaItem: MediaItem?) {
         val item = mediaItem ?: return
         _uiState.update {
+            val newSongId = item.mediaId.ifEmpty { it.songId }
             it.copy(
-                songId = item.mediaId.ifEmpty { it.songId },
+                songId = newSongId,
                 title = item.mediaMetadata.title?.toString() ?: it.title,
                 artist = item.mediaMetadata.artist?.toString() ?: it.artist,
+                isDownloaded = downloadStore.isDownloaded(newSongId),
             )
         }
     }
@@ -168,6 +218,7 @@ class PlayerViewModel @Inject constructor(
                 } else {
                     listOf(Song(id = songId, title = title, artist = artist, album = null, durationMs = 0L))
                 }
+                currentSongs = songs
                 val startIndex = songs.indexOfFirst { it.id == songId }.coerceAtLeast(0)
 
                 // Başlangıç parçasının kapağını senkron üret (hızlı başlasın); gerisi arka planda.
@@ -216,6 +267,9 @@ class PlayerViewModel @Inject constructor(
             .setMediaId(song.id)
             // Gerçek stream URL'i servis tarafında çözülür (kısa ömürlü/imzalı URL).
             .setUri("$SONG_URI_PREFIX${Uri.encode(song.id)}")
+            // Cache key = songId: indirilmiş şarkı, imzalı URL değişse de cache'te bu anahtarla
+            // bulunur ve çevrimdışı çalar (bkz. MediaDownloadRepository / PlaybackService).
+            .setCustomCacheKey(song.id)
             .setMediaMetadata(metadata)
             .build()
     }

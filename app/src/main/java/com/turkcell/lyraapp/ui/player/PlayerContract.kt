@@ -18,6 +18,8 @@ data class PlayerUiState(
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val isFavorite: Boolean = false,
+    val isDownloaded: Boolean = false,
+    val isDownloading: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )
@@ -34,6 +36,9 @@ sealed interface PlayerIntent {
 
     /** Kuyrukta önceki şarkı (işlevsel — kuyruk bağlamına bağlı). */
     data object SkipPrevious : PlayerIntent
+
+    /** Aktif şarkıyı cihaza indir (çevrimdışı çalma için cache'e yazar). */
+    data object Download : PlayerIntent
 
     /** Hata sonrası yeniden yükle. */
     data object Retry : PlayerIntent

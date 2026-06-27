@@ -17,6 +17,7 @@ data class LibraryUiState(
     val playlists: List<Playlist> = emptyList(),
     val viewMode: LibraryViewMode = LibraryViewMode.LIST,
     val sortOrder: LibrarySortOrder = LibrarySortOrder.RECENT,
+    val isOffline: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )

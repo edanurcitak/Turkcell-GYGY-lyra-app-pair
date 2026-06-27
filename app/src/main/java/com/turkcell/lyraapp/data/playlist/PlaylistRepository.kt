@@ -1,5 +1,6 @@
 package com.turkcell.lyraapp.data.playlist
 
+import com.turkcell.lyraapp.data.download.DownloadStore
 import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.data.remote.StreamingApi
 import com.turkcell.lyraapp.data.remote.dto.toDomain
@@ -22,6 +23,12 @@ interface PlaylistRepository {
     suspend fun getPlaylists(): List<Playlist>
 
     suspend fun getPlaylistDetail(playlistId: String): PlaylistDetail
+
+    /**
+     * "İndirilen Şarkılar" listesini yerel indirme deposundan döndürür (ağ kullanmaz).
+     * Çevrimdışıyken kütüphanede gösterilen tek liste budur.
+     */
+    fun getDownloadedPlaylist(): Playlist
 }
 
 /**
@@ -38,6 +45,7 @@ interface PlaylistRepository {
  */
 class ApiPlaylistRepository @Inject constructor(
     private val api: StreamingApi,
+    private val downloadStore: DownloadStore,
 ) : PlaylistRepository {
 
     override suspend fun getPlaylists(): List<Playlist> = coroutineScope {
@@ -65,7 +73,8 @@ class ApiPlaylistRepository @Inject constructor(
             isLiked = true,
             isPinned = true,
         )
-        listOf(liked) + playlists
+        // "İndirilen Şarkılar" daima görünür ve sabitlidir (çevrimdışıyken tek gösterilen liste).
+        listOf(liked, getDownloadedPlaylist()) + playlists
     }
 
     /**
@@ -76,21 +85,40 @@ class ApiPlaylistRepository @Inject constructor(
      * Diğer listeler `GET /api/v1/playlists/{id}` detay ucundan gelir.
      */
     override suspend fun getPlaylistDetail(playlistId: String): PlaylistDetail =
-        if (playlistId == LIKED_PLAYLIST_ID) {
-            val songs: List<Song> = api.getSongs(limit = MAX_LIKED_SONGS).data.map { it.toDomain() }
-            PlaylistDetail(
-                id = LIKED_PLAYLIST_ID,
-                name = LIKED_PLAYLIST_NAME,
+        when (playlistId) {
+            LIKED_PLAYLIST_ID -> {
+                val songs: List<Song> = api.getSongs(limit = MAX_LIKED_SONGS).data.map { it.toDomain() }
+                PlaylistDetail(
+                    id = LIKED_PLAYLIST_ID,
+                    name = LIKED_PLAYLIST_NAME,
+                    description = null,
+                    songs = songs,
+                )
+            }
+            // İndirilenler tamamen yereldir (çevrimdışı erişilir); ağ uçlarına dokunmaz.
+            DOWNLOADED_PLAYLIST_ID -> PlaylistDetail(
+                id = DOWNLOADED_PLAYLIST_ID,
+                name = DOWNLOADED_PLAYLIST_NAME,
                 description = null,
-                songs = songs,
+                songs = downloadStore.downloads.value,
             )
-        } else {
-            api.getPlaylistDetail(playlistId).data.toDomain()
+            else -> api.getPlaylistDetail(playlistId).data.toDomain()
         }
+
+    override fun getDownloadedPlaylist(): Playlist = Playlist(
+        id = DOWNLOADED_PLAYLIST_ID,
+        name = DOWNLOADED_PLAYLIST_NAME,
+        description = null,
+        songCount = downloadStore.downloads.value.size,
+        isLiked = false,
+        isPinned = true,
+    )
 
     private companion object {
         const val LIKED_PLAYLIST_ID = "liked"
         const val LIKED_PLAYLIST_NAME = "Beğenilen Şarkılar"
+        const val DOWNLOADED_PLAYLIST_ID = "downloaded"
+        const val DOWNLOADED_PLAYLIST_NAME = "İndirilen Şarkılar"
         const val MAX_LIKED_SONGS = 100
     }
 }

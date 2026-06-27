@@ -8,6 +8,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
@@ -49,6 +51,10 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var songRepository: SongRepository
 
+    // Çevrimdışı oynatma için paylaşılan medya cache'i (indirme de aynı cache'e yazar; bkz. MediaCacheModule).
+    @Inject
+    lateinit var mediaCache: SimpleCache
+
     private var mediaSession: MediaSession? = null
 
     // Çalma kaydı (ağ) için servis ömrü boyunca yaşayan kapsam; oynatmadan bağımsız, en iyi çaba.
@@ -82,10 +88,20 @@ class PlaybackService : MediaSessionService() {
             }
             dataSpec.withUri(Uri.parse(url))
         }
-        val dataSourceFactory = ResolvingDataSource.Factory(DefaultHttpDataSource.Factory(), resolver)
+        val upstreamFactory = ResolvingDataSource.Factory(DefaultHttpDataSource.Factory(), resolver)
+
+        // Cache okuma yolu: `songId` cache key'iyle indirilmiş bir şarkı cache'te tam bulunursa
+        // CacheDataSource baytları doğrudan cihaz belleğinden verir; upstream (resolver) hiç açılmaz
+        // → internete ya da yeni bir stream-url isteğine gerek kalmaz (çevrimdışı çalma).
+        // Salt-okunur (write sink null): cache yalnızca bilinçli indirmelerle dolar, akışta şişmez.
+        val cacheDataSourceFactory = CacheDataSource.Factory()
+            .setCache(mediaCache)
+            .setUpstreamDataSourceFactory(upstreamFactory)
+            .setCacheWriteDataSinkFactory(null)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         val player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)

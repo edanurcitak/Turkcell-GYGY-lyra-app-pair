@@ -124,7 +124,10 @@ private fun PlayerScreen(
                 title = uiState.title,
                 artist = uiState.artist,
                 isFavorite = uiState.isFavorite,
+                isDownloaded = uiState.isDownloaded,
+                isDownloading = uiState.isDownloading,
                 onToggleFavorite = { /* §talep: favori şimdilik boş */ },
+                onDownload = { onIntent(PlayerIntent.Download) },
             )
             Spacer(Modifier.height(20.dp))
             ProgressSection(uiState = uiState, onIntent = onIntent)
@@ -213,7 +216,10 @@ private fun NowPlayingInfo(
     title: String,
     artist: String,
     isFavorite: Boolean,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
     onToggleFavorite: () -> Unit,
+    onDownload: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -234,11 +240,54 @@ private fun NowPlayingInfo(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        DownloadButton(
+            isDownloaded = isDownloaded,
+            isDownloading = isDownloading,
+            onDownload = onDownload,
+        )
         IconButton(onClick = onToggleFavorite) {
             Icon(
                 imageVector = LyraIcons.Favorite,
                 contentDescription = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
                 tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Kalbin yanındaki "İndir" butonu. Üç durum: indiriliyor (ilerleme halkası), indirildi (onay,
+ * tıklanamaz) ve indirilebilir (indirme ikonu). İndirme tamamlanınca state üzerinden onay'a döner.
+ */
+@Composable
+private fun DownloadButton(
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    onDownload: () -> Unit,
+) {
+    IconButton(
+        onClick = onDownload,
+        enabled = !isDownloaded && !isDownloading,
+    ) {
+        when {
+            isDownloading -> CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(24.dp),
+            )
+
+            isDownloaded -> Icon(
+                imageVector = LyraIcons.Check,
+                contentDescription = "İndirildi",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp),
+            )
+
+            else -> Icon(
+                imageVector = LyraIcons.Download,
+                contentDescription = "İndir",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(28.dp),
             )
         }

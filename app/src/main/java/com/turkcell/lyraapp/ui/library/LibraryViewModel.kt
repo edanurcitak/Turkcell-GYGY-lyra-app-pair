@@ -2,6 +2,7 @@ package com.turkcell.lyraapp.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.connectivity.ConnectivityObserver
 import com.turkcell.lyraapp.data.playlist.Playlist
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,13 +24,14 @@ import kotlin.coroutines.cancellation.CancellationException
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
+    private val connectivityObserver: ConnectivityObserver,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
     init {
-        load()
+        observeConnectivity()
     }
 
     fun onIntent(intent: LibraryIntent) {
@@ -53,17 +55,36 @@ class LibraryViewModel @Inject constructor(
                 it.copy(sortOrder = next, playlists = it.playlists.sortedFor(next))
             }
 
-            LibraryIntent.Refresh -> load()
+            LibraryIntent.Refresh -> load(connectivityObserver.currentlyOnline())
         }
     }
 
-    private fun load() {
+    /** Bağlantı durumu değiştikçe kütüphaneyi yeniden yükler (çevrimdışı → yalnızca indirilenler). */
+    private fun observeConnectivity() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            connectivityObserver.isOnline.collect { online -> load(online) }
+        }
+    }
+
+    private fun load(online: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, isOffline = !online) }
+            // Çevrimdışı: ağ uçlarına hiç dokunmadan yalnızca "İndirilen Şarkılar".
+            if (!online) {
+                val downloaded = playlistRepository.getDownloadedPlaylist()
+                _uiState.update {
+                    it.copy(playlists = listOf(downloaded), isLoading = false, isOffline = true)
+                }
+                return@launch
+            }
             try {
                 val playlists = playlistRepository.getPlaylists()
                 _uiState.update {
-                    it.copy(playlists = playlists.sortedFor(it.sortOrder), isLoading = false)
+                    it.copy(
+                        playlists = playlists.sortedFor(it.sortOrder),
+                        isLoading = false,
+                        isOffline = false,
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e
