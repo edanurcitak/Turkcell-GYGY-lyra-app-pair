@@ -71,4 +71,8 @@ object LyraDestinations {
 
     // Yeni çalma listesi oluşturma (tam ekran; argümansız).
     const val CREATE_PLAYLIST = "createPlaylist"
+
+    // Premium plan seçim ekranı (tam ekran; argümansız). Profil'deki free banner'dan açılır.
+    // Tasarım sonra yapılacak; şimdilik placeholder ekran kayıtlı.
+    const val PREMIUM_PLANS = "premiumPlans"
 }

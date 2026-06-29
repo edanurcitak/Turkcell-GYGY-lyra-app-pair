@@ -1,6 +1,7 @@
 package com.turkcell.lyraapp.ui.icons
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -341,6 +342,16 @@ object LyraIcons {
         )
     }
 
+    /** Plan banner'ı (premium/free) daire içi ikon: elmas (Material Diamond). */
+    val Diamond: ImageVector by lazy {
+        lyraIcon(
+            name = "Diamond",
+            pathData = "M19,3H5L2,9l10,12L22,9L19,3zM9.62,8l1.5,-3h1.76l1.5,3H9.62zM11,10v5.17L6.69," +
+                    "10H11zM13,15.17V10h4.31L13,15.17zM18.83,8h-2.6l-1.5,-3h2.6L18.83,8zM6.67,5h2.6l-1.5," +
+                    "3h-2.6L6.67,5z",
+        )
+    }
+
     /** "Çevrimdışı indirme" satırının leading ikonu (Material FileDownload). */
     val Download: ImageVector by lazy {
         lyraIcon(
@@ -396,13 +407,73 @@ object LyraIcons {
                     "-3.42 2.26,-4.4 -0.44,-0.06 -0.9,-0.1 -1.36,-0.1L12,3z",
         )
     }
+
+    // ── Premium plan seçim ekranı ikonları ──
+
+    /** Premium başlık rozeti: yıldızlı madalya (Material WorkspacePremium). */
+    val WorkspacePremium: ImageVector by lazy {
+        lyraIcon(
+            name = "WorkspacePremium",
+            pathData = "M9.68,13.69L12,11.93l2.31,1.76l-0.88,-2.85L15.75,9h-2.84L12,6.19L11.09,9H8.25l2.31," +
+                    "1.84L9.68,13.69zM20,10c0,-4.42 -3.58,-8 -8,-8s-8,3.58 -8,8c0,2.03 0.76,3.87 2,5.28V23l6," +
+                    "-2l6,2v-7.72C19.24,13.87 20,12.03 20,10zM12,4c3.31,0 6,2.69 6,6s-2.69,6 -6,6s-6,-2.69 " +
+                    "-6,-6S8.69,4 12,4zM12,19.5l-4,1.6v-3.66C9.18,17.79 10.53,18 12,18s2.82,-0.21 4,-0.56v3.66L12,19.5z",
+            pathFillType = PathFillType.EvenOdd,
+        )
+    }
+
+    /** "Reklamsız dinleme" özelliği: yasak/engel (Material Block). */
+    val Block: ImageVector by lazy {
+        lyraIcon(
+            name = "Block",
+            pathData = "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM4,12c0,-4.42 " +
+                    "3.58,-8 8,-8 1.85,0 3.55,0.63 4.9,1.69L5.69,16.9C4.63,15.55 4,13.85 4,12zM12,20c-1.85,0 " +
+                    "-3.55,-0.63 -4.9,-1.69L18.31,7.1C19.37,8.45 20,10.15 20,12c0,4.42 -3.58,8 -8,8z",
+        )
+    }
+
+    /** "Çevrimdışı indirme" özelliği: daire içinde indirme oku (Material DownloadForOffline). */
+    val DownloadForOffline: ImageVector by lazy {
+        lyraIcon(
+            name = "DownloadForOffline",
+            pathData = "M12,2C6.49,2 2,6.49 2,12s4.49,10 10,10 10,-4.49 10,-10S17.51,2 12,2zM16,13l-4,4l-4," +
+                    "-4h3V9h2v4h3z",
+            pathFillType = PathFillType.EvenOdd,
+        )
+    }
+
+    /** "Tüm cihazlarında" özelliği: telefon + masaüstü (Material Devices). */
+    val Devices: ImageVector by lazy {
+        lyraIcon(
+            name = "Devices",
+            pathData = "M4,6h18V4H4C2.9,4 2,4.9 2,6v11H0v3h14v-3H4V6zM23,8h-6c-0.55,0 -1,0.45 -1,1v10c0," +
+                    "0.55 0.45,1 1,1h6c0.55,0 1,-0.45 1,-1V9c0,-0.55 -0.45,-1 -1,-1zM23,18h-6v-8h6v8z",
+        )
+    }
+
+    /** Plan seçimi — seçili radio (Material RadioButtonChecked: halka + iç nokta). */
+    val RadioButtonChecked: ImageVector by lazy {
+        lyraIcon(
+            name = "RadioButtonChecked",
+            pathData = "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.42,0 " +
+                    "-8,-3.58 -8,-8s3.58,-8 8,-8 8,3.58 8,8 -3.58,8 -8,8zM12,7c-2.76,0 -5,2.24 -5,5s2.24,5 " +
+                    "5,5 5,-2.24 5,-5 -2.24,-5 -5,-5z",
+        )
+    }
 }
 
 /**
  * 24x24 viewport'lu, tek path'li bir [ImageVector] üretir.
  * Path verisi standart SVG/Android `pathData` string formatındadır.
+ *
+ * [pathFillType]: içinde "oyuk" (ör. daire içinde ok/yıldız) olan Material ikonları doğru çizmek
+ * için [PathFillType.EvenOdd] geçilir; aksi halde varsayılan [PathFillType.NonZero] kullanılır.
  */
-private fun lyraIcon(name: String, pathData: String): ImageVector =
+private fun lyraIcon(
+    name: String,
+    pathData: String,
+    pathFillType: PathFillType = PathFillType.NonZero,
+): ImageVector =
     ImageVector.Builder(
         name = name,
         defaultWidth = 24.dp,
@@ -412,4 +483,5 @@ private fun lyraIcon(name: String, pathData: String): ImageVector =
     ).addPath(
         pathData = PathParser().parsePathString(pathData).toNodes(),
         fill = SolidColor(Color.Black),
+        pathFillType = pathFillType,
     ).build()

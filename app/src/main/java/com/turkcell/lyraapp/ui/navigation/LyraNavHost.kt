@@ -14,6 +14,7 @@ import com.turkcell.lyraapp.ui.login.LoginScreen
 import com.turkcell.lyraapp.ui.otp.OtpScreen
 import com.turkcell.lyraapp.ui.player.PlayerScreen
 import com.turkcell.lyraapp.ui.playlistdetail.PlaylistDetailScreen
+import com.turkcell.lyraapp.ui.premium.PremiumPlansScreen
 import com.turkcell.lyraapp.ui.register.RegisterScreen
 
 /**
@@ -85,11 +86,16 @@ fun LyraNavHost(
                     navController.navigate(LyraDestinations.playlistDetailRoute(playlistId))
                 },
                 onCreatePlaylist = { navController.navigate(LyraDestinations.CREATE_PLAYLIST) },
+                onNavigateToPremium = { navController.navigate(LyraDestinations.PREMIUM_PLANS) },
             )
         }
         // Yeni çalma listesi oluşturma (tam ekran; BNB'nin üstünü kaplar). Kaydet işlevsiz (uç nokta yok).
         composable(LyraDestinations.CREATE_PLAYLIST) {
             CreatePlaylistScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        // Premium plan seçimi (tam ekran; Profil'deki free banner'dan açılır). Tasarım sonra; şimdilik placeholder.
+        composable(LyraDestinations.PREMIUM_PLANS) {
+            PremiumPlansScreen(onNavigateBack = { navController.popBackStack() })
         }
         // Şarkı oynatma (tam ekran); songId path + title/artist query argümanlarını taşır.
         composable(

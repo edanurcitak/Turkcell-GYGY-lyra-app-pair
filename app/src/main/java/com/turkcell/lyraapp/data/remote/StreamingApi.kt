@@ -1,5 +1,6 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.MembershipPlansResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistDetailResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
@@ -57,4 +58,13 @@ interface StreamingApi {
      */
     @GET("api/v1/playlists/{id}")
     suspend fun getPlaylistDetail(@Path("id") id: String): PlaylistDetailResponseDto
+
+    /**
+     * Premium fiyat kataloğunu (satın alınabilir planlar) döndürür.
+     *
+     * **Public** — auth gerektirmez (bkz. `docs/api/openapi.json` → `memberships`); diğer public
+     * uçlar gibi token'sız çağrılır. Satın alma (`memberships/checkout`) korumalıdır ve kapsam dışıdır.
+     */
+    @GET("api/v1/memberships/plans")
+    suspend fun getMembershipPlans(): MembershipPlansResponseDto
 }

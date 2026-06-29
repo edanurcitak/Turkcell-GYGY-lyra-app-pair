@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -41,25 +43,32 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
  * State'i [ProfileViewModel]'den toplar ve kullanıcı aksiyonlarını [ProfileIntent] olarak
  * geri iletir. Görsel içerik, Hilt'siz de önizlenebilmesi için ayrı bir stateless
  * composable'a ([ProfileScreen]) devredilir.
+ *
+ * [onNavigateToPremiumPlans]: free banner tıklanınca premium plan seçim ekranına yönlendirir
+ * (projenin nav kalıbı: navigasyon ViewModel/Intent değil, callback ile taşınır). Varsayılan
+ * `{}` olduğundan ekran/preview'lar nav bağlanmadan da derlenir.
  */
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
+    onNavigateToPremiumPlans: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ProfileScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
+        onUpgradeClick = onNavigateToPremiumPlans,
         modifier = modifier,
     )
 }
 
-/** Profil ekranının stateless gövdesi: yalnızca [uiState]'i çizer, etkileşimleri [onIntent] ile bildirir. */
+/** Profil ekranının stateless gövdesi: yalnızca [uiState]'i çizer, etkileşimleri [onIntent]/[onUpgradeClick] ile bildirir. */
 @Composable
 private fun ProfileScreen(
     uiState: ProfileUiState,
     onIntent: (ProfileIntent) -> Unit,
+    onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -78,6 +87,24 @@ private fun ProfileScreen(
         Spacer(Modifier.height(24.dp))
 
         ProfileStats(uiState)
+
+        Spacer(Modifier.height(24.dp))
+
+        // Plan banner'ı tier'a göre değişir (kaynak: MembershipStore → uiState.isPremium).
+        // Her iki banner da tıklanınca premium plan seçim ekranına yönlendirir.
+        if (uiState.isPremium) {
+            PlanBanner(
+                title = "Premium · 3 gün kaldı",
+                subtitle = "Yenile ya da aboneliğe geç",
+                onClick = onUpgradeClick,
+            )
+        } else {
+            PlanBanner(
+                title = "Premium'a yükselt",
+                subtitle = "Tüm özelliklerin kilidini aç",
+                onClick = onUpgradeClick,
+            )
+        }
 
         Spacer(Modifier.height(28.dp))
 
@@ -193,6 +220,73 @@ private fun ProfileStat(value: String, label: String) {
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Plan banner'ı: kahverengi degrade kart (ekran görüntüsü referansı).
+ *
+ * Premium ve free aynı görsel kalıbı paylaşır; yalnızca metin değişir. [onClick] verilirse kart
+ * tıklanabilir olur ve premium plan seçim ekranına yönlendirir (her iki banner da bunu kullanır);
+ * `null` ise yalnızca dekoratiftir (chevron tasarım gereği durur, aksiyon tetiklemez).
+ */
+@Composable
+private fun PlanBanner(
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(20.dp)
+    // Soldan sağa açık → koyu kahve degrade (ekran görüntüsündeki banner).
+    val gradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFF8A6A52), Color(0xFF5C4031)),
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 6.dp, shape = shape)
+            .clip(shape)
+            .background(gradient)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = LyraIcons.Diamond,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Spacer(Modifier.size(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.75f),
+            )
+        }
+        Spacer(Modifier.size(12.dp))
+        Icon(
+            imageVector = LyraIcons.ChevronRight,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.85f),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -325,22 +419,44 @@ private fun settingIcon(id: String): ImageVector = when (id) {
     else -> LyraIcons.Settings
 }
 
-@Preview(name = "Profile • Light", showBackground = true)
+@Preview(name = "Profile • Premium • Light", showBackground = true)
 @Composable
 private fun ProfileScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            ProfileScreen(uiState = ProfileUiState(isDarkTheme = false), onIntent = {})
+            ProfileScreen(
+                uiState = ProfileUiState(isDarkTheme = false, isPremium = true),
+                onIntent = {},
+                onUpgradeClick = {},
+            )
         }
     }
 }
 
-@Preview(name = "Profile • Dark", showBackground = true)
+@Preview(name = "Profile • Premium • Dark", showBackground = true)
 @Composable
 private fun ProfileScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
         Surface(color = MaterialTheme.colorScheme.surface) {
-            ProfileScreen(uiState = ProfileUiState(isDarkTheme = true), onIntent = {})
+            ProfileScreen(
+                uiState = ProfileUiState(isDarkTheme = true, isPremium = true),
+                onIntent = {},
+                onUpgradeClick = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "Profile • Free • Light", showBackground = true)
+@Composable
+private fun ProfileScreenFreePreview() {
+    LyraAppTheme(darkTheme = false) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            ProfileScreen(
+                uiState = ProfileUiState(isDarkTheme = false, isPremium = false, membership = "Ücretsiz"),
+                onIntent = {},
+                onUpgradeClick = {},
+            )
         }
     }
 }

@@ -7,14 +7,20 @@ package com.turkcell.lyraapp.ui.profile
  * - [ProfileIntent]: kullanıcı aksiyonları; ViewModel bunları işleyip yeni state üretir.
  *
  * Not: Profil/istatistik ve ayar satırları statik içeriktir (ekran görüntüsü referansı;
- * API karşılığı yok, §2.2). Ekranın tek işlevsel etkileşimi "Görünüm" tema seçimidir
- * ([ProfileIntent.ThemeChanged]); diğer satırlar yalnızca tasarımdır, aksiyon tetiklemez (§4.6).
+ * API karşılığı yok, §2.2). İşlevsel etkileşimler: "Görünüm" tema seçimi
+ * ([ProfileIntent.ThemeChanged]) ve free banner tıklaması (navigasyon; intent değil, ekran
+ * callback'i ile — projenin nav kalıbı). Diğer satırlar yalnızca tasarımdır, aksiyon tetiklemez (§4.6).
+ *
+ * [isPremium]: tier kaynağı API'dir (istemci hesaplamaz, §2.2); ViewModel bunu
+ * [com.turkcell.lyraapp.data.membership.MembershipStore] üzerinden türetir. Banner ve header alt
+ * satırı ([membership]) buna göre değişir (premium → "Premium · 3 gün", free → "Ücretsiz").
  */
 data class ProfileUiState(
     val initials: String = "ZK",
     val displayName: String = "Zeynep Kaya",
     val handle: String = "@zeynepk",
-    val membership: String = "Premium",
+    val isPremium: Boolean = true,
+    val membership: String = "Premium · 3 gün",
     val playlistCount: String = "127",
     val followerCount: String = "1.2B",
     val followingCount: String = "348",
