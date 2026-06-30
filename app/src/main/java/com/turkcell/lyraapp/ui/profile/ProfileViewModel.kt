@@ -2,6 +2,8 @@ package com.turkcell.lyraapp.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.auth.User
+import com.turkcell.lyraapp.data.auth.UserStore
 import com.turkcell.lyraapp.data.membership.MembershipStore
 import com.turkcell.lyraapp.ui.theme.AppThemeController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,26 +16,33 @@ import javax.inject.Inject
 /**
  * Profil ekranının MVI ViewModel'i (AGENTS.MD §4.4).
  *
- * [ProfileUiState]'i tek bir [StateFlow] üzerinden yayınlar. Profil/istatistik içeriği statiktir;
- * dinamik alanlar iki app-scoped kaynaktan türetilir:
+ * [ProfileUiState]'i tek bir [StateFlow] üzerinden yayınlar. İstatistik içeriği statiktir; dinamik
+ * alanlar üç app-scoped kaynaktan türetilir:
  * - [AppThemeController] → [ProfileUiState.isDarkTheme] ("Görünüm" toggle'ı uygulama temasını yansıtır).
  * - [MembershipStore] → [ProfileUiState.isPremium] + header alt satırı ([ProfileUiState.membership]).
  *   Tier kaynağı API'dir; istemci hesaplamaz, yalnızca aynalar (§2.2). Banner premium/free'ye göre değişir.
+ * - [UserStore] → [ProfileUiState.displayName] + [ProfileUiState.initials]. Kullanıcının register'da
+ *   girdiği ad/soyaddan türetilir (kaynak API; §2.2 — istemci uydurmaz, yalnızca biçimlendirir).
  * Gelen [ProfileIntent]'ler [onIntent] içinde reducer mantığıyla işlenir.
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val appThemeController: AppThemeController,
     private val membershipStore: MembershipStore,
+    private val userStore: UserStore,
 ) : ViewModel() {
 
     // Tema henüz seçilmemişse (null = sistem), toggle'da varsayılan olarak "Açık" vurgulanır.
-    // Tier (free/premium) MembershipStore'dan aynalanır; banner ve header alt satırını sürer.
+    // Tier (free/premium) MembershipStore'dan, kimlik (ad/baş harf) UserStore'dan aynalanır.
     val uiState: StateFlow<ProfileUiState> = combine(
         appThemeController.darkTheme,
         membershipStore.isPremiumFlow,
-    ) { dark, isPremium ->
+        userStore.userFlow,
+    ) { dark, isPremium, user ->
+        val name = displayNameOf(user)
         ProfileUiState(
+            displayName = name,
+            initials = initialsOf(name),
             isDarkTheme = dark ?: false,
             isPremium = isPremium,
             membership = if (isPremium) "Premium · 3 gün" else "Ücretsiz",
@@ -50,4 +59,37 @@ class ProfileViewModel @Inject constructor(
                 appThemeController.setDarkTheme(intent.darkTheme)
         }
     }
+
+    /**
+     * Gösterilecek adı türetir: önce register'da girilen "ad soyad", yoksa API'nin [User.displayName]'i,
+     * o da yoksa telefon. Hiçbiri yoksa nötr boş-durum etiketi ([ProfileUiState] varsayılanı) kullanılır
+     * (§2.2 — kullanıcı verisi uydurulmaz, yalnızca eldeki alanlar biçimlendirilir).
+     */
+    private fun displayNameOf(user: User?): String {
+        val firstLast = listOfNotNull(user?.firstName, user?.lastName)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
+        if (firstLast.isNotEmpty()) return firstLast
+
+        val display = user?.displayName?.trim().orEmpty()
+        if (display.isNotEmpty()) return display
+
+        val phone = user?.phone?.trim().orEmpty()
+        if (phone.isNotEmpty()) return phone
+
+        return ProfileUiState().displayName
+    }
+
+    /**
+     * Addan baş harfleri (en fazla iki) türetir; harf ile başlamayan parçalar (ör. telefon) elenir.
+     * Türetilemezse nötr varsayılana ([ProfileUiState.initials]) düşer.
+     */
+    private fun initialsOf(name: String): String =
+        name.split(' ')
+            .filter { it.isNotBlank() && it.first().isLetter() }
+            .take(2)
+            .map { it.first().uppercaseChar() }
+            .joinToString("")
+            .ifBlank { ProfileUiState().initials }
 }

@@ -187,7 +187,7 @@ private fun ProfileHeader(uiState: ProfileUiState) {
         Spacer(Modifier.height(4.dp))
 
         Text(
-            text = "${uiState.handle} · ${uiState.membership}",
+            text = uiState.membership,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -425,7 +425,12 @@ private fun ProfileScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             ProfileScreen(
-                uiState = ProfileUiState(isDarkTheme = false, isPremium = true),
+                uiState = ProfileUiState(
+                    initials = "ZK",
+                    displayName = "Zeynep Kaya",
+                    isDarkTheme = false,
+                    isPremium = true,
+                ),
                 onIntent = {},
                 onUpgradeClick = {},
             )
@@ -439,7 +444,12 @@ private fun ProfileScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             ProfileScreen(
-                uiState = ProfileUiState(isDarkTheme = true, isPremium = true),
+                uiState = ProfileUiState(
+                    initials = "ZK",
+                    displayName = "Zeynep Kaya",
+                    isDarkTheme = true,
+                    isPremium = true,
+                ),
                 onIntent = {},
                 onUpgradeClick = {},
             )
@@ -453,7 +463,13 @@ private fun ProfileScreenFreePreview() {
     LyraAppTheme(darkTheme = false) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             ProfileScreen(
-                uiState = ProfileUiState(isDarkTheme = false, isPremium = false, membership = "Ücretsiz"),
+                uiState = ProfileUiState(
+                    initials = "ZK",
+                    displayName = "Zeynep Kaya",
+                    isDarkTheme = false,
+                    isPremium = false,
+                    membership = "Ücretsiz",
+                ),
                 onIntent = {},
                 onUpgradeClick = {},
             )

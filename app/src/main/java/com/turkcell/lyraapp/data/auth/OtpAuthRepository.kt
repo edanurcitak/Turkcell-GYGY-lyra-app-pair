@@ -57,6 +57,7 @@ class ApiOtpAuthRepository @Inject constructor(
     private val meApi: MeApi,
     private val tokenStore: TokenStore,
     private val membershipStore: MembershipStore,
+    private val userStore: UserStore,
 ) : OtpAuthRepository {
 
     override suspend fun requestOtp(phone: String): Result<OtpRequestResult> = runCatching {
@@ -72,6 +73,8 @@ class ApiOtpAuthRepository @Inject constructor(
         )
         // Tier'ı API yanıtından aynalama (free/premium); §2.2 — istemci hesaplamaz.
         membershipStore.setFromUser(session.user)
+        // Kimlik bilgisini (ad/soyad/telefon) profilin okuyacağı app-scoped depoya aynala.
+        userStore.setUser(session.user)
         session
     }
 
@@ -82,7 +85,7 @@ class ApiOtpAuthRepository @Inject constructor(
     ): Result<User> = runCatching {
         val token = tokenStore.accessToken
             ?: throw IllegalStateException("Profil için oturum yok (erişim token'ı bulunamadı).")
-        meApi.updateInformations(
+        val user = meApi.updateInformations(
             authorization = "Bearer $token",
             body = UpdateInformationsBody(
                 firstName = firstName,
@@ -90,6 +93,9 @@ class ApiOtpAuthRepository @Inject constructor(
                 birthDate = birthDate,
             ),
         ).data.toDomain()
+        // Profil tamamlama sonrası güncel kimliği aynala (kayıt adımı → profil ad/baş harf güncellenir).
+        userStore.setUser(user)
+        user
     }
 
     override suspend fun refresh(): Result<AuthTokens> = runCatching {
@@ -105,5 +111,6 @@ class ApiOtpAuthRepository @Inject constructor(
         tokenStore.refreshToken?.let { api.logout(LogoutBody(refreshToken = it)) }
         tokenStore.clear()
         membershipStore.clear()
+        userStore.clear()
     }
 }
