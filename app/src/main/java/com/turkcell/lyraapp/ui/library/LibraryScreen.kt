@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -73,6 +75,7 @@ fun LibraryScreen(
 }
 
 /** Kütüphane ekranının stateless gövdesi: yalnızca [uiState]'i çizer, etkileşimleri [onIntent] ile bildirir. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LibraryScreen(
     uiState: LibraryUiState,
@@ -108,7 +111,10 @@ private fun LibraryScreen(
         Spacer(Modifier.height(8.dp))
 
         // İçerik alanı: yükleniyor / hata / boş / liste|ızgara durumları (FeedScreen deseni).
-        Box(
+        // Aşağı çekince ([LibraryIntent.PullRefresh]) liste görünür kalarak üstte yenileme göstergesi döner.
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { onIntent(LibraryIntent.PullRefresh) },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),

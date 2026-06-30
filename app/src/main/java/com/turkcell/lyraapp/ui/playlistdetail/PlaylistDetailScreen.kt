@@ -18,12 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -66,6 +68,7 @@ fun PlaylistDetailScreen(
 }
 
 /** Detay ekranının stateless gövdesi: yalnızca [uiState]'i çizer, etkileşimleri dışarı bildirir. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaylistDetailScreen(
     uiState: PlaylistDetailUiState,
@@ -90,7 +93,10 @@ private fun PlaylistDetailScreen(
         Spacer(Modifier.height(8.dp))
 
         // İçerik alanı: yükleniyor / hata / boş / liste durumları (FeedScreen deseni).
-        Box(
+        // Aşağı çekince ([PlaylistDetailIntent.PullRefresh]) liste görünür kalarak üstte yenileme göstergesi döner.
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { onIntent(PlaylistDetailIntent.PullRefresh) },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),

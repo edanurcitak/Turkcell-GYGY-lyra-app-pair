@@ -2,6 +2,9 @@ package com.turkcell.lyraapp.ui.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.auth.UserStore
+import com.turkcell.lyraapp.data.auth.resolveDisplayName
+import com.turkcell.lyraapp.data.auth.resolveInitials
 import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.ui.theme.AppThemeController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +37,7 @@ import kotlin.coroutines.cancellation.CancellationException
 class FeedViewModel @Inject constructor(
     private val songRepository: SongRepository,
     private val appThemeController: AppThemeController,
+    private val userStore: UserStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedUiState())
@@ -44,12 +48,18 @@ class FeedViewModel @Inject constructor(
 
     init {
         observeTheme()
+        observeUser()
         // İlk yükleme ekranın ON_RESUME'unda ([FeedIntent.Refresh]) tetiklenir; burada çağrılmaz.
     }
 
     fun onIntent(intent: FeedIntent) {
         when (intent) {
             FeedIntent.Refresh -> load()
+            // Pull-to-refresh: göstergeyi hemen göster, ardından aynı yükleme yolunu kullan.
+            FeedIntent.PullRefresh -> {
+                _uiState.update { it.copy(isRefreshing = true) }
+                load()
+            }
             is FeedIntent.ToggleTheme -> appThemeController.setDarkTheme(intent.darkTheme)
         }
     }
@@ -59,6 +69,20 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             appThemeController.darkTheme.collect { dark ->
                 _uiState.update { it.copy(isDarkTheme = dark ?: false) }
+            }
+        }
+    }
+
+    /**
+     * App-scoped kullanıcı kimliğini izler; baş harfleri başlık avatarına ([FeedUiState.userInitials])
+     * yansıtır. Kaynak [UserStore] (API'den aynalanır; §2.2 — istemci uydurmaz, yalnızca biçimlendirir);
+     * türetilemezse nötr varsayılan ([FeedUiState] başlangıcı) korunur.
+     */
+    private fun observeUser() {
+        viewModelScope.launch {
+            userStore.userFlow.collect { user ->
+                val initials = resolveInitials(user.resolveDisplayName()) ?: FeedUiState().userInitials
+                _uiState.update { it.copy(userInitials = initials) }
             }
         }
     }
@@ -82,6 +106,7 @@ class FeedViewModel @Inject constructor(
                         forYou = forYou.await(),
                         recommendations = recommendations.await(),
                         isLoading = false,
+                        isRefreshing = false,
                     )
                 }
             } catch (e: CancellationException) {
@@ -90,10 +115,11 @@ class FeedViewModel @Inject constructor(
                 // Tazelemede içerik varsa koru (sessiz başarısızlık); yalnızca ilk yüklemede hata göster.
                 _uiState.update {
                     if (hasContent) {
-                        it.copy(isLoading = false)
+                        it.copy(isLoading = false, isRefreshing = false)
                     } else {
                         it.copy(
                             isLoading = false,
+                            isRefreshing = false,
                             errorMessage = "İçerik yüklenemedi. Lütfen tekrar deneyin.",
                         )
                     }

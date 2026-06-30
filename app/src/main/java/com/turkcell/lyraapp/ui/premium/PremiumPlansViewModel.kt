@@ -39,25 +39,53 @@ class PremiumPlansViewModel @Inject constructor(
                 _uiState.update { it.copy(selectedPlanId = intent.planId) }
 
             PremiumPlansIntent.Retry -> load()
+            PremiumPlansIntent.PullRefresh -> load(isPull = true)
         }
     }
 
-    private fun load() {
+    /**
+     * Planları yükler. [isPull] `true` ise (pull-to-refresh) tam-ekran spinner gösterilmez; mevcut
+     * içerik görünür kalır, yenileme yalnızca üstteki dönen göstergeyle ([PremiumPlansUiState.isRefreshing])
+     * belirtilir ve başarısız tazelemede içerik korunur (FeedViewModel deseni).
+     */
+    private fun load(isPull: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = if (isPull) it.isLoading else true,
+                    isRefreshing = isPull,
+                    errorMessage = null,
+                )
+            }
             try {
                 val plans = membershipRepository.getPlans()
                 // Tasarımda "Aylık" (recurring) plan seçili gelir; yoksa ilk plana düşülür.
                 val defaultId = plans.firstOrNull { it.type == "recurring" }?.id
                     ?: plans.firstOrNull()?.id.orEmpty()
                 _uiState.update {
-                    it.copy(plans = plans, selectedPlanId = defaultId, isLoading = false)
+                    // Pull-to-refresh'te kullanıcının (hâlâ geçerli olan) seçimini koru; ilk yüklemede varsayılana ayarla.
+                    val keepSelection = isPull && plans.any { plan -> plan.id == it.selectedPlanId }
+                    it.copy(
+                        plans = plans,
+                        selectedPlanId = if (keepSelection) it.selectedPlanId else defaultId,
+                        isLoading = false,
+                        isRefreshing = false,
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // Pull-to-refresh'te planlar zaten yüklüyse koru (sessiz başarısızlık); aksi halde hatayı göster.
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = "Planlar yüklenemedi. Lütfen tekrar deneyin.")
+                    if (isPull && it.plans.isNotEmpty()) {
+                        it.copy(isLoading = false, isRefreshing = false)
+                    } else {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            errorMessage = "Planlar yüklenemedi. Lütfen tekrar deneyin.",
+                        )
+                    }
                 }
             }
         }

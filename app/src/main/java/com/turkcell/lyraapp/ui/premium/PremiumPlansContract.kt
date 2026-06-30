@@ -19,6 +19,7 @@ data class PremiumPlansUiState(
     /** Seçili planın id'si; planlar yüklenince ViewModel "recurring" (aylık) plana ayarlar. */
     val selectedPlanId: String = "",
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -28,6 +29,13 @@ sealed interface PremiumPlansIntent {
 
     /** Yükleme hatası sonrası "Tekrar dene". */
     data object Retry : PremiumPlansIntent
+
+    /**
+     * Kullanıcının aşağı çekme (pull-to-refresh) hareketi. [Retry] ile aynı yüklemeyi yapar ancak
+     * tam-ekran spinner yerine üstteki dönen göstergeyi besler ([PremiumPlansUiState.isRefreshing])
+     * ve mevcut içerik görünür kalır.
+     */
+    data object PullRefresh : PremiumPlansIntent
 }
 
 /**

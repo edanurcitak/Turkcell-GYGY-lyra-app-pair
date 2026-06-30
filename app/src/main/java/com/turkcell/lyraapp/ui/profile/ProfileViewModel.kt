@@ -2,8 +2,9 @@ package com.turkcell.lyraapp.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.turkcell.lyraapp.data.auth.User
 import com.turkcell.lyraapp.data.auth.UserStore
+import com.turkcell.lyraapp.data.auth.resolveDisplayName
+import com.turkcell.lyraapp.data.auth.resolveInitials
 import com.turkcell.lyraapp.data.membership.MembershipStore
 import com.turkcell.lyraapp.ui.theme.AppThemeController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,10 +40,10 @@ class ProfileViewModel @Inject constructor(
         membershipStore.isPremiumFlow,
         userStore.userFlow,
     ) { dark, isPremium, user ->
-        val name = displayNameOf(user)
+        val name = user.resolveDisplayName() ?: ProfileUiState().displayName
         ProfileUiState(
             displayName = name,
-            initials = initialsOf(name),
+            initials = resolveInitials(name) ?: ProfileUiState().initials,
             isDarkTheme = dark ?: false,
             isPremium = isPremium,
             membership = if (isPremium) "Premium · 3 gün" else "Ücretsiz",
@@ -59,37 +60,4 @@ class ProfileViewModel @Inject constructor(
                 appThemeController.setDarkTheme(intent.darkTheme)
         }
     }
-
-    /**
-     * Gösterilecek adı türetir: önce register'da girilen "ad soyad", yoksa API'nin [User.displayName]'i,
-     * o da yoksa telefon. Hiçbiri yoksa nötr boş-durum etiketi ([ProfileUiState] varsayılanı) kullanılır
-     * (§2.2 — kullanıcı verisi uydurulmaz, yalnızca eldeki alanlar biçimlendirilir).
-     */
-    private fun displayNameOf(user: User?): String {
-        val firstLast = listOfNotNull(user?.firstName, user?.lastName)
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .joinToString(" ")
-        if (firstLast.isNotEmpty()) return firstLast
-
-        val display = user?.displayName?.trim().orEmpty()
-        if (display.isNotEmpty()) return display
-
-        val phone = user?.phone?.trim().orEmpty()
-        if (phone.isNotEmpty()) return phone
-
-        return ProfileUiState().displayName
-    }
-
-    /**
-     * Addan baş harfleri (en fazla iki) türetir; harf ile başlamayan parçalar (ör. telefon) elenir.
-     * Türetilemezse nötr varsayılana ([ProfileUiState.initials]) düşer.
-     */
-    private fun initialsOf(name: String): String =
-        name.split(' ')
-            .filter { it.isNotBlank() && it.first().isLetter() }
-            .take(2)
-            .map { it.first().uppercaseChar() }
-            .joinToString("")
-            .ifBlank { ProfileUiState().initials }
 }

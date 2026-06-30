@@ -15,10 +15,18 @@ data class PlaylistDetailUiState(
     val title: String = "",
     val songs: List<Song> = emptyList(),
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
 )
 
 sealed interface PlaylistDetailIntent {
     /** Şarkıları yeniden yükler (hata sonrası tekrar dene). */
     data object Retry : PlaylistDetailIntent
+
+    /**
+     * Kullanıcının aşağı çekme (pull-to-refresh) hareketi. [Retry] ile aynı yüklemeyi yapar ancak
+     * tam-ekran spinner yerine üstteki dönen göstergeyi besler ([PlaylistDetailUiState.isRefreshing])
+     * ve mevcut şarkı listesi görünür kalır.
+     */
+    data object PullRefresh : PlaylistDetailIntent
 }

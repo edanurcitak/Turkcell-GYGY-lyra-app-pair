@@ -42,25 +42,48 @@ class PlaylistDetailViewModel @Inject constructor(
     fun onIntent(intent: PlaylistDetailIntent) {
         when (intent) {
             PlaylistDetailIntent.Retry -> load()
+            PlaylistDetailIntent.PullRefresh -> load(isPull = true)
         }
     }
 
-    private fun load() {
+    /**
+     * Şarkıları yükler. [isPull] `true` ise (pull-to-refresh) tam-ekran spinner gösterilmez; mevcut
+     * liste görünür kalır, yenileme yalnızca üstteki dönen göstergeyle ([PlaylistDetailUiState.isRefreshing])
+     * belirtilir ve başarısız tazelemede içerik korunur (FeedViewModel deseni).
+     */
+    private fun load(isPull: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = if (isPull) it.isLoading else true,
+                    isRefreshing = isPull,
+                    errorMessage = null,
+                )
+            }
             try {
                 val detail = playlistRepository.getPlaylistDetail(playlistId)
                 _uiState.update {
-                    it.copy(title = detail.name, songs = detail.songs, isLoading = false)
+                    it.copy(
+                        title = detail.name,
+                        songs = detail.songs,
+                        isLoading = false,
+                        isRefreshing = false,
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // Pull-to-refresh'te liste varsa koru (sessiz başarısızlık); aksi halde hatayı göster.
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Çalma listesi yüklenemedi. Lütfen tekrar deneyin.",
-                    )
+                    if (isPull && it.songs.isNotEmpty()) {
+                        it.copy(isLoading = false, isRefreshing = false)
+                    } else {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            errorMessage = "Çalma listesi yüklenemedi. Lütfen tekrar deneyin.",
+                        )
+                    }
                 }
             }
         }

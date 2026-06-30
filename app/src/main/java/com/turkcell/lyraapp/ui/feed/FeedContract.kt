@@ -14,8 +14,11 @@ import com.turkcell.lyraapp.data.feed.Song
  * - [recentlyPlayed]  → `GET /me/recently-played` ("Son çalınanlar")
  * - [forYou]          → `GET /me/for-you` ("Senin için müzikler")
  *
- * Not: [greeting] ve [userInitials] şarkı verisi değildir (API'da karşılığı yok); statik
- * varsayılan kalır. [isDarkTheme] app-scoped tema durumunu yansıtır (başlıktaki tema düğmesi).
+ * Not: [greeting] şarkı verisi değildir (API'da karşılığı yok); statik varsayılan kalır.
+ * [userInitials] oturum açan kullanıcının ad/soyadından türetilir (ViewModel, app-scoped
+ * [com.turkcell.lyraapp.data.auth.UserStore]'dan aynalar; kaynak API, §2.2 — istemci uydurmaz).
+ * Buradaki "ZK" yalnızca preview/boş-durum fallback'idir. [isDarkTheme] app-scoped tema durumunu
+ * yansıtır (başlıktaki tema düğmesi).
  */
 data class FeedUiState(
     val greeting: String = "İyi akşamlar",
@@ -25,12 +28,19 @@ data class FeedUiState(
     val forYou: List<Song> = emptyList(),
     val isDarkTheme: Boolean = false,
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
 )
 
 sealed interface FeedIntent {
-    /** İçeriği yeniden yükle (hata sonrası "Tekrar dene"). */
+    /** İçeriği yeniden yükle (ilk yükleme, ON_RESUME tazeleme ve hata sonrası "Tekrar dene"). */
     data object Refresh : FeedIntent
+
+    /**
+     * Kullanıcının aşağı çekme (pull-to-refresh) hareketi. [Refresh] ile aynı yüklemeyi yapar ancak
+     * üstteki dönen göstergeyi besler ([FeedUiState.isRefreshing]); ON_RESUME tazelemesi sessizdir.
+     */
+    data object PullRefresh : FeedIntent
 
     /** Başlıktaki tema düğmesi: açık/koyu temaya geç. */
     data class ToggleTheme(val darkTheme: Boolean) : FeedIntent

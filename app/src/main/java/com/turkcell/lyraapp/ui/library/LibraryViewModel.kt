@@ -56,6 +56,8 @@ class LibraryViewModel @Inject constructor(
             }
 
             LibraryIntent.Refresh -> load(connectivityObserver.currentlyOnline())
+            LibraryIntent.PullRefresh ->
+                load(connectivityObserver.currentlyOnline(), isPull = true)
         }
     }
 
@@ -66,14 +68,33 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun load(online: Boolean) {
+    /**
+     * Çalma listelerini yükler. [isPull] `true` ise (pull-to-refresh) tam-ekran spinner gösterilmez;
+     * mevcut liste görünür kalır, yenileme yalnızca üstteki dönen göstergeyle ([LibraryUiState.isRefreshing])
+     * belirtilir ve başarısız tazelemede içerik korunur (FeedViewModel deseni).
+     */
+    private fun load(online: Boolean, isPull: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, isOffline = !online) }
-            // Çevrimdışı: ağ uçlarına hiç dokunmadan yalnızca "İndirilen Şarkılar".
+            _uiState.update {
+                it.copy(
+                    isLoading = if (isPull) it.isLoading else true,
+                    isRefreshing = isPull,
+                    errorMessage = null,
+                    isOffline = !online,
+                )
+            }
+            // Çevrimdışı: ağ uçlarına hiç dokunmadan yalnızca "İndirilen Şarkılar" (varsa).
             if (!online) {
                 val downloaded = playlistRepository.getDownloadedPlaylist()
+                // Görünür indirme yoksa (free ya da boş) liste boş kalır → EmptyState gösterilir.
+                val offlinePlaylists = if (downloaded.songCount > 0) listOf(downloaded) else emptyList()
                 _uiState.update {
-                    it.copy(playlists = listOf(downloaded), isLoading = false, isOffline = true)
+                    it.copy(
+                        playlists = offlinePlaylists,
+                        isLoading = false,
+                        isRefreshing = false,
+                        isOffline = true,
+                    )
                 }
                 return@launch
             }
@@ -83,17 +104,24 @@ class LibraryViewModel @Inject constructor(
                     it.copy(
                         playlists = playlists.sortedFor(it.sortOrder),
                         isLoading = false,
+                        isRefreshing = false,
                         isOffline = false,
                     )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // Pull-to-refresh'te liste varsa koru (sessiz başarısızlık); aksi halde hatayı göster.
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Çalma listeleri yüklenemedi. Lütfen tekrar deneyin.",
-                    )
+                    if (isPull && it.playlists.isNotEmpty()) {
+                        it.copy(isLoading = false, isRefreshing = false)
+                    } else {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            errorMessage = "Çalma listeleri yüklenemedi. Lütfen tekrar deneyin.",
+                        )
+                    }
                 }
             }
         }

@@ -73,8 +73,11 @@ class ApiPlaylistRepository @Inject constructor(
             isLiked = true,
             isPinned = true,
         )
-        // "İndirilen Şarkılar" daima görünür ve sabitlidir (çevrimdışıyken tek gösterilen liste).
-        listOf(liked, getDownloadedPlaylist()) + playlists
+        // "İndirilen Şarkılar" yalnızca görünür indirme varken (premium + dolu) eklenir; free'de ya da
+        // indirme yokken gizlenir ([DownloadStore]'un tier/kullanıcı kapısı). "Beğenilen Şarkılar" daima kalır.
+        val downloaded = getDownloadedPlaylist()
+        val pinned = if (downloaded.songCount > 0) listOf(liked, downloaded) else listOf(liked)
+        pinned + playlists
     }
 
     /**

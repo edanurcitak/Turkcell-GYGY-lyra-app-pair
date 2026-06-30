@@ -21,9 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -86,6 +88,7 @@ fun PremiumPlansScreen(
 }
 
 /** Stateless gövde: [uiState]'i çizer, etkileşimleri [onIntent]/[onNavigateBack]/[onContinue] ile bildirir. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PremiumPlansScreen(
     uiState: PremiumPlansUiState,
@@ -114,13 +117,22 @@ private fun PremiumPlansScreen(
                 )
             }
 
-            when {
-                uiState.isLoading -> LoadingState()
-                uiState.errorMessage != null -> ErrorState(
-                    message = uiState.errorMessage,
-                    onRetry = { onIntent(PremiumPlansIntent.Retry) },
-                )
-                else -> PremiumContent(uiState = uiState, onIntent = onIntent, onContinue = onContinue)
+            // Aşağı çekince ([PremiumPlansIntent.PullRefresh]) içerik görünür kalarak üstte yenileme göstergesi döner.
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { onIntent(PremiumPlansIntent.PullRefresh) },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                when {
+                    uiState.isLoading -> LoadingState()
+                    uiState.errorMessage != null -> ErrorState(
+                        message = uiState.errorMessage,
+                        onRetry = { onIntent(PremiumPlansIntent.Retry) },
+                    )
+                    else -> PremiumContent(uiState = uiState, onIntent = onIntent, onContinue = onContinue)
+                }
             }
         }
     }

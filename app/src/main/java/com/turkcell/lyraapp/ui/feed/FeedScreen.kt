@@ -20,12 +20,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -72,6 +74,7 @@ fun FeedScreen(
 }
 
 /** Feed ekranının stateless gövdesi. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FeedScreen(
     uiState: FeedUiState,
@@ -94,8 +97,11 @@ private fun FeedScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // İçerik alanı: yükleniyor / hata / boş / liste durumları.
-        Box(
+        // İçerik alanı: yükleniyor / hata / boş / liste durumları. Aşağı çekince ([FeedIntent.PullRefresh])
+        // içerik görünür kalarak üstte yenileme göstergesi döner; gesture, kaydırılabilir liste üzerinde çalışır.
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { onIntent(FeedIntent.PullRefresh) },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),

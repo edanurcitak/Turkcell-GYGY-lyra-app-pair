@@ -1,11 +1,20 @@
 package com.turkcell.lyraapp.data.download
 
 import android.content.Context
+import com.turkcell.lyraapp.data.auth.UserStore
 import com.turkcell.lyraapp.data.feed.Song
+import com.turkcell.lyraapp.data.membership.MembershipStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -22,8 +31,16 @@ import javax.inject.Singleton
  * tutulur; cache yalnızca bayt saklar, şarkı başlığı/sanatçısı tutmaz. "İndirilen Şarkılar"
  * listesini çizebilmek için meta veriyi burada SharedPreferences + JSON ile saklarız.
  *
+ * **İki kapı (görünür indirme = kullanıcıya ait ∧ premium):**
+ * - **Kullanıcıya göre bölümleme:** meta veri global değil, oturum açan kullanıcının kimliğine göre
+ *   ayrı anahtarda (`downloaded_songs_<userId>`) saklanır. Böylece bir profilde indirilen şarkı başka
+ *   profilde "indirilmiş" görünmez. Aktif kova [UserStore] değiştikçe ([userFlow]) yeniden okunur.
+ * - **Tier kapısı:** UI'ın okuduğu [downloads] akışı [MembershipStore] ile birleştirilir; premium
+ *   değilken **boş** yayılır ve [isDownloaded] daima `false` döner. Baytlar/meta **silinmez**, yalnızca
+ *   gizlenir — tier kaynağı API'dir (§2.2), tekrar premium olununca aynı hesapta geri görünür.
+ *
  * [downloads] sıcak bir [StateFlow] olduğundan Player (indir butonunun durumu) ve Kütüphane
- * (indirilenler listesi) indirme tamamlandığında otomatik güncellenir.
+ * (indirilenler listesi) indirme tamamlandığında veya tier/kullanıcı değiştiğinde otomatik güncellenir.
  *
  * Not (§2.2): Domain [Song]'u doğrudan kalıcılığa bağlamamak için ayrı bir [StoredSong] kaydı
  * serileştirilir; alanlar birebir eşlenir.
@@ -32,46 +49,85 @@ import javax.inject.Singleton
 class DownloadStore @Inject constructor(
     @ApplicationContext context: Context,
     private val json: Json,
+    private val userStore: UserStore,
+    private val membershipStore: MembershipStore,
 ) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    private val _downloads = MutableStateFlow(readFromPrefs())
-    val downloads: StateFlow<List<Song>> = _downloads.asStateFlow()
+    // Singleton uygulama ömrü boyunca yaşar; kullanıcı/tier akışlarını dinlemek için iptal edilmez.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    /** Şarkı indirilmiş mi (meta veri kaydı var mı). */
+    /** Oturum açan kullanıcının kimliği (kova anahtarı); oturum yoksa `null`. */
+    private val activeUserId: String? get() = userStore.userFlow.value?.id
+
+    // Mevcut kullanıcının HAM (tier'sız) indirme kovası; kullanıcı değişince yeniden doldurulur.
+    private val _userDownloads = MutableStateFlow(readFromPrefs(activeUserId))
+
+    /**
+     * UI'ın okuduğu KAPILI görünüm: yalnızca premium hesapta ve yalnızca o hesaba ait indirmeler.
+     * Premium değilken boş yayar (gizleme; silme yok). [SharingStarted.Eagerly] ile her zaman güncel
+     * tutulur; çünkü [PlaylistRepository] gibi okuyucular sürekli abone olmadan `value`'yu okur.
+     */
+    val downloads: StateFlow<List<Song>> = combine(
+        _userDownloads,
+        membershipStore.isPremiumFlow,
+    ) { songs, premium ->
+        if (premium) songs else emptyList()
+    }.stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = if (membershipStore.isPremium) _userDownloads.value else emptyList(),
+    )
+
+    init {
+        // Kullanıcı değişince (login/logout) aktif kovayı o kullanıcının kayıtlarıyla yeniden doldur.
+        userStore.userFlow
+            .onEach { user -> _userDownloads.value = readFromPrefs(user?.id) }
+            .launchIn(scope)
+    }
+
+    /** Şarkı, mevcut premium kullanıcı için indirilmiş mi (kapılı: free'de daima `false`). */
     fun isDownloaded(songId: String): Boolean =
-        _downloads.value.any { it.id == songId }
+        membershipStore.isPremium && _userDownloads.value.any { it.id == songId }
 
-    /** İndirme tamamlandığında çağrılır; aynı şarkı varsa yinelemez. */
+    /**
+     * İndirme tamamlandığında çağrılır; mevcut kullanıcının kovasına yazar (premium akışından gelir,
+     * bkz. [MediaDownloadRepository]). Oturum yoksa yok sayar.
+     */
     fun add(song: Song) {
-        _downloads.update { current ->
+        val userId = activeUserId ?: return
+        _userDownloads.update { current ->
             if (current.any { it.id == song.id }) current else current + song
         }
-        writeToPrefs(_downloads.value)
+        writeToPrefs(userId, _userDownloads.value)
     }
 
-    /** İndirmeyi listeden kaldırır (cache baytları ayrıca temizlenebilir; şimdilik meta veri yeter). */
+    /** İndirmeyi mevcut kullanıcının kovasından kaldırır (cache baytları ayrıca temizlenebilir; şimdilik meta veri yeter). */
     fun remove(songId: String) {
-        _downloads.update { current -> current.filterNot { it.id == songId } }
-        writeToPrefs(_downloads.value)
+        val userId = activeUserId ?: return
+        _userDownloads.update { current -> current.filterNot { it.id == songId } }
+        writeToPrefs(userId, _userDownloads.value)
     }
 
-    private fun readFromPrefs(): List<Song> {
-        val raw = prefs.getString(KEY_DOWNLOADS, null) ?: return emptyList()
+    private fun readFromPrefs(userId: String?): List<Song> {
+        if (userId == null) return emptyList()
+        val raw = prefs.getString(keyFor(userId), null) ?: return emptyList()
         return runCatching {
             json.decodeFromString<List<StoredSong>>(raw).map { it.toDomain() }
         }.getOrDefault(emptyList())
     }
 
-    private fun writeToPrefs(songs: List<Song>) {
+    private fun writeToPrefs(userId: String, songs: List<Song>) {
         val raw = json.encodeToString(songs.map { StoredSong.fromDomain(it) })
-        prefs.edit().putString(KEY_DOWNLOADS, raw).apply()
+        prefs.edit().putString(keyFor(userId), raw).apply()
     }
+
+    private fun keyFor(userId: String): String = "$KEY_DOWNLOADS_PREFIX$userId"
 
     private companion object {
         const val PREFS_NAME = "lyra_downloads"
-        const val KEY_DOWNLOADS = "downloaded_songs"
+        const val KEY_DOWNLOADS_PREFIX = "downloaded_songs_"
     }
 }
 
