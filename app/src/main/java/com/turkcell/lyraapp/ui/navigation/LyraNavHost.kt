@@ -12,6 +12,7 @@ import com.turkcell.lyraapp.ui.createplaylist.CreatePlaylistScreen
 import com.turkcell.lyraapp.ui.home.HomeScreen
 import com.turkcell.lyraapp.ui.login.LoginScreen
 import com.turkcell.lyraapp.ui.otp.OtpScreen
+import com.turkcell.lyraapp.ui.payment.PaymentScreen
 import com.turkcell.lyraapp.ui.player.PlayerScreen
 import com.turkcell.lyraapp.ui.playlistdetail.PlaylistDetailScreen
 import com.turkcell.lyraapp.ui.premium.PremiumPlansScreen
@@ -93,9 +94,30 @@ fun LyraNavHost(
         composable(LyraDestinations.CREATE_PLAYLIST) {
             CreatePlaylistScreen(onNavigateBack = { navController.popBackStack() })
         }
-        // Premium plan seçimi (tam ekran; Profil'deki free banner'dan açılır). Tasarım sonra; şimdilik placeholder.
+        // Premium plan seçimi (tam ekran; Profil'deki free banner'dan açılır). "Devam et" → ödeme.
         composable(LyraDestinations.PREMIUM_PLANS) {
-            PremiumPlansScreen(onNavigateBack = { navController.popBackStack() })
+            PremiumPlansScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onContinue = { planId ->
+                    navController.navigate(LyraDestinations.paymentRoute(planId))
+                },
+            )
+        }
+        // Ödeme (tam ekran); seçilen planId path argümanını taşır. Onayda (premium aktif) profile döner.
+        composable(
+            route = LyraDestinations.PAYMENT_ROUTE,
+            arguments = listOf(
+                navArgument(LyraDestinations.PAYMENT_ARG_PLAN_ID) { type = NavType.StringType },
+            ),
+        ) {
+            PaymentScreen(
+                onNavigateBack = { navController.popBackStack() },
+                // Başarıda premium/ödeme ekranlarını yığından temizleyip ana kabuğa (Profil sekmesi) dön;
+                // banner MembershipStore'dan reaktif olarak premium'a güncellenir.
+                onPaymentSuccess = {
+                    navController.popBackStack(LyraDestinations.HOME, inclusive = false)
+                },
+            )
         }
         // Şarkı oynatma (tam ekran); songId path + title/artist query argümanlarını taşır.
         composable(

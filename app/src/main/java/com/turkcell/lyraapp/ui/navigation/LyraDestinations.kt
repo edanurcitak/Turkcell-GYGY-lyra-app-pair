@@ -73,6 +73,14 @@ object LyraDestinations {
     const val CREATE_PLAYLIST = "createPlaylist"
 
     // Premium plan seçim ekranı (tam ekran; argümansız). Profil'deki free banner'dan açılır.
-    // Tasarım sonra yapılacak; şimdilik placeholder ekran kayıtlı.
     const val PREMIUM_PLANS = "premiumPlans"
+
+    // Ödeme ekranı (tam ekran); satın alınacak planın id'sini path argümanı olarak taşır:
+    // "payment/{planId}". Premium plan ekranındaki "Devam et"ten açılır.
+    const val PAYMENT = "payment"
+    const val PAYMENT_ARG_PLAN_ID = "planId"
+    const val PAYMENT_ROUTE = "$PAYMENT/{$PAYMENT_ARG_PLAN_ID}"
+
+    /** Belirli bir plan için somut ödeme rotasını üretir (planId katalog id'sidir, kodlama gerekmez). */
+    fun paymentRoute(planId: String): String = "$PAYMENT/$planId"
 }

@@ -1,5 +1,6 @@
 package com.turkcell.lyraapp.data.membership
 
+import com.turkcell.lyraapp.data.auth.Membership
 import com.turkcell.lyraapp.data.auth.User
 import com.turkcell.lyraapp.data.auth.isPremium
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,16 @@ class MembershipStore @Inject constructor() {
     /** Login sonrası kullanıcıdan tier'ı set eder (aktif üyelik → premium). */
     fun setFromUser(user: User?) {
         _isPremium.value = user?.isPremium == true
+    }
+
+    /**
+     * Checkout sonrası satın alınan üyelikten tier'ı set eder (onaylı satın alma → premium).
+     *
+     * Tier yine API yanıtından gelen [Membership]'ten türetilir ([Membership.isActive]); istemci
+     * hesaplamaz, yalnızca aynalar (§2.2). Banner ve premium özellikler buna reaktif olarak açılır.
+     */
+    fun setActive(membership: Membership) {
+        _isPremium.value = membership.isActive
     }
 
     /** Logout: tier'ı sıfırla (free). */

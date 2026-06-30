@@ -1,12 +1,16 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.CheckoutBody
+import com.turkcell.lyraapp.data.remote.dto.CheckoutResponseDto
 import com.turkcell.lyraapp.data.remote.dto.MembershipPlansResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistDetailResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.StreamUrlResponseDto
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -67,4 +71,18 @@ interface StreamingApi {
      */
     @GET("api/v1/memberships/plans")
     suspend fun getMembershipPlans(): MembershipPlansResponseDto
+
+    /**
+     * Premium üyelik satın alır (mock kart ödemesi) ve onayda aktif üyeliği döndürür.
+     *
+     * **Korumalı**: `Authorization: Bearer` zorunlu (bkz. `docs/api/openapi.json` →
+     * `memberships/checkout`). Token [com.turkcell.lyraapp.data.auth.TokenStore]'dan okunur ve
+     * [getStreamUrl] gibi çağrı başına [Header] ile geçirilir. Sonuç kart numarasına göre
+     * belirlenir: onay → 201, red → 402.
+     */
+    @POST("api/v1/memberships/checkout")
+    suspend fun checkout(
+        @Header("Authorization") authorization: String,
+        @Body body: CheckoutBody,
+    ): CheckoutResponseDto
 }

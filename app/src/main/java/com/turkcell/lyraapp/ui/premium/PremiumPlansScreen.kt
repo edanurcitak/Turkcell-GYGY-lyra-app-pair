@@ -71,6 +71,7 @@ private val UnselectedCard = Color(0xFF1E1318)
 @Composable
 fun PremiumPlansScreen(
     onNavigateBack: () -> Unit,
+    onContinue: (planId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PremiumPlansViewModel = hiltViewModel(),
 ) {
@@ -79,16 +80,18 @@ fun PremiumPlansScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
         onNavigateBack = onNavigateBack,
+        onContinue = onContinue,
         modifier = modifier,
     )
 }
 
-/** Stateless gövde: [uiState]'i çizer, etkileşimleri [onIntent]/[onNavigateBack] ile bildirir. */
+/** Stateless gövde: [uiState]'i çizer, etkileşimleri [onIntent]/[onNavigateBack]/[onContinue] ile bildirir. */
 @Composable
 private fun PremiumPlansScreen(
     uiState: PremiumPlansUiState,
     onIntent: (PremiumPlansIntent) -> Unit,
     onNavigateBack: () -> Unit,
+    onContinue: (planId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -117,7 +120,7 @@ private fun PremiumPlansScreen(
                     message = uiState.errorMessage,
                     onRetry = { onIntent(PremiumPlansIntent.Retry) },
                 )
-                else -> PremiumContent(uiState = uiState, onIntent = onIntent)
+                else -> PremiumContent(uiState = uiState, onIntent = onIntent, onContinue = onContinue)
             }
         }
     }
@@ -160,6 +163,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 private fun PremiumContent(
     uiState: PremiumPlansUiState,
     onIntent: (PremiumPlansIntent) -> Unit,
+    onContinue: (planId: String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -199,14 +203,20 @@ private fun PremiumContent(
 
         Spacer(Modifier.height(24.dp))
 
-        // "Devam et": satın alma (checkout) kart formu gerektirir, kapsam dışı → şimdilik işlevsiz (§4.6).
+        // "Devam et": seçili planla ödeme ekranına geçer (planId taşınır; checkout orada alınır).
         Button(
-            onClick = { /* Satın alma akışı henüz yok (§2.2): işlevsiz. */ },
+            onClick = { onContinue(uiState.selectedPlanId) },
+            enabled = uiState.selectedPlanId.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AccentPink, contentColor = OnAccent),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AccentPink,
+                contentColor = OnAccent,
+                disabledContainerColor = AccentPink.copy(alpha = 0.35f),
+                disabledContentColor = OnAccent.copy(alpha = 0.55f),
+            ),
         ) {
             Text(
                 text = "Devam et",
@@ -441,6 +451,7 @@ private fun PremiumPlansContentPreview() {
             ),
             onIntent = {},
             onNavigateBack = {},
+            onContinue = {},
         )
     }
 }
@@ -453,6 +464,7 @@ private fun PremiumPlansLoadingPreview() {
             uiState = PremiumPlansUiState(isLoading = true),
             onIntent = {},
             onNavigateBack = {},
+            onContinue = {},
         )
     }
 }
