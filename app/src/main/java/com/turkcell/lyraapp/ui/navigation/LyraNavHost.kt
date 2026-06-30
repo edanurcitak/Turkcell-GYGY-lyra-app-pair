@@ -13,6 +13,7 @@ import com.turkcell.lyraapp.ui.home.HomeScreen
 import com.turkcell.lyraapp.ui.login.LoginScreen
 import com.turkcell.lyraapp.ui.otp.OtpScreen
 import com.turkcell.lyraapp.ui.payment.PaymentScreen
+import com.turkcell.lyraapp.ui.payment.PaymentSuccessScreen
 import com.turkcell.lyraapp.ui.player.PlayerScreen
 import com.turkcell.lyraapp.ui.playlistdetail.PlaylistDetailScreen
 import com.turkcell.lyraapp.ui.premium.PremiumPlansScreen
@@ -112,9 +113,21 @@ fun LyraNavHost(
         ) {
             PaymentScreen(
                 onNavigateBack = { navController.popBackStack() },
-                // Başarıda premium/ödeme ekranlarını yığından temizleyip ana kabuğa (Profil sekmesi) dön;
-                // banner MembershipStore'dan reaktif olarak premium'a güncellenir.
+                // Başarıda ödeme başarılı ekranına geç; premium/ödeme ekranlarını yığından temizle ki
+                // başarı ekranı doğrudan ana kabuğun (HOME) üstünde kalsın (geri tuşu ödemeye dönmez).
                 onPaymentSuccess = {
+                    navController.navigate(LyraDestinations.PAYMENT_SUCCESS) {
+                        popUpTo(LyraDestinations.PREMIUM_PLANS) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        // Ödeme başarılı (tam ekran). "Dinlemeye başla" → profil (ana kabuk; profil sekmesi korunur).
+        // Banner MembershipStore'dan reaktif olarak premium'a güncellenmiştir.
+        composable(LyraDestinations.PAYMENT_SUCCESS) {
+            PaymentSuccessScreen(
+                onStartListening = {
                     navController.popBackStack(LyraDestinations.HOME, inclusive = false)
                 },
             )

@@ -83,4 +83,7 @@ object LyraDestinations {
 
     /** Belirli bir plan için somut ödeme rotasını üretir (planId katalog id'sidir, kodlama gerekmez). */
     fun paymentRoute(planId: String): String = "$PAYMENT/$planId"
+
+    // Ödeme başarılı ekranı (tam ekran; argümansız). Ödeme onayından sonra açılır.
+    const val PAYMENT_SUCCESS = "paymentSuccess"
 }
