@@ -89,6 +89,13 @@ fun LyraNavHost(
                 },
                 onCreatePlaylist = { navController.navigate(LyraDestinations.CREATE_PLAYLIST) },
                 onNavigateToPremium = { navController.navigate(LyraDestinations.PREMIUM_PLANS) },
+                // Çıkış: login'e dön ve tüm oturum-içi yığını temizle (geri tuşuyla dönülmez).
+                onLogout = {
+                    navController.navigate(LyraDestinations.LOGIN) {
+                        popUpTo(LyraDestinations.HOME) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         // Yeni çalma listesi oluşturma (tam ekran; BNB'nin üstünü kaplar). Kaydet işlevsiz (uç nokta yok).

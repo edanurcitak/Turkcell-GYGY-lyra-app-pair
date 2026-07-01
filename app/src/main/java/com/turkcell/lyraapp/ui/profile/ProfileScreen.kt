@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,14 +48,26 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
  * [onNavigateToPremiumPlans]: free banner tıklanınca premium plan seçim ekranına yönlendirir
  * (projenin nav kalıbı: navigasyon ViewModel/Intent değil, callback ile taşınır). Varsayılan
  * `{}` olduğundan ekran/preview'lar nav bağlanmadan da derlenir.
+ *
+ * [onNavigateToLogin]: "Çıkış yap" sonrası tek seferlik [ProfileEffect.NavigateToLogin] geldiğinde
+ * login ekranına döner (kabuk tarafından geri yığın temizlenerek bağlanır).
  */
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     onNavigateToPremiumPlans: () -> Unit = {},
+    onNavigateToLogin: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Tek seferlik çıkış navigasyonunu dinle (state'te tutmadan; Login ekranıyla aynı kalıp).
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                ProfileEffect.NavigateToLogin -> onNavigateToLogin()
+            }
+        }
+    }
     ProfileScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
@@ -127,6 +140,45 @@ private fun ProfileScreen(
         uiState.settings.forEachIndexed { index, setting ->
             if (index > 0) Spacer(Modifier.height(12.dp))
             SettingRow(setting)
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // "Yardım ve destek"in altında çıkış yap: oturumu kapatıp login'e döner.
+        LogoutRow(onClick = { onIntent(ProfileIntent.Logout) })
+    }
+}
+
+/**
+ * "Çıkış yap" satırı: [SettingRow] ile aynı kart kalıbı, fakat `error` rengiyle vurgulanır ve
+ * tıklanınca [ProfileIntent.Logout] tetikler (chevron değil, dekoratif değil — gerçek aksiyon).
+ */
+@Composable
+private fun LogoutRow(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = LyraIcons.Logout,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.size(16.dp))
+            Text(
+                text = "Çıkış yap",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

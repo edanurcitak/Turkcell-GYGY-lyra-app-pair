@@ -34,6 +34,18 @@ data class ProfileUiState(
 sealed interface ProfileIntent {
     /** Görünüm toggle'ı: açık/koyu tema seçimi (uygulama geneline uygulanır). */
     data class ThemeChanged(val darkTheme: Boolean) : ProfileIntent
+
+    /** "Çıkış yap": oturumu (token/tier/kimlik) temizler ve login'e döner. */
+    data object Logout : ProfileIntent
+}
+
+/**
+ * Profil ekranının tek seferlik (one-shot) yan etkileri (AGENTS.MD §4.6 — navigasyon açıkça talep
+ * edildiğinde eklenir; [com.turkcell.lyraapp.ui.login.LoginEffect] ile aynı Channel kalıbı).
+ */
+sealed interface ProfileEffect {
+    /** Çıkış tamamlandı; login ekranına dön (geri yığın temizlenerek). */
+    data object NavigateToLogin : ProfileEffect
 }
 
 /**

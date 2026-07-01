@@ -54,6 +54,7 @@ fun HomeScreen(
     onPlaylistClick: (String) -> Unit,
     onCreatePlaylist: () -> Unit,
     onNavigateToPremium: () -> Unit,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -86,7 +87,10 @@ fun HomeScreen(
                 )
             }
             composable(HomeDestinations.PROFILE) {
-                ProfileScreen(onNavigateToPremiumPlans = onNavigateToPremium)
+                ProfileScreen(
+                    onNavigateToPremiumPlans = onNavigateToPremium,
+                    onNavigateToLogin = onLogout,
+                )
             }
         }
     }
@@ -125,6 +129,7 @@ private fun HomeScreenDarkPreview() {
             onPlaylistClick = {},
             onCreatePlaylist = {},
             onNavigateToPremium = {},
+            onLogout = {},
         )
     }
 }
@@ -138,6 +143,7 @@ private fun HomeScreenLightPreview() {
             onPlaylistClick = {},
             onCreatePlaylist = {},
             onNavigateToPremium = {},
+            onLogout = {},
         )
     }
 }

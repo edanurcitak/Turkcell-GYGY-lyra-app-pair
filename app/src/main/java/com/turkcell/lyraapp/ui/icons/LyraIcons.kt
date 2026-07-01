@@ -371,6 +371,15 @@ object LyraIcons {
         )
     }
 
+    /** Profil "Çıkış yap" satırının leading ikonu (Material Logout). */
+    val Logout: ImageVector by lazy {
+        lyraIcon(
+            name = "Logout",
+            pathData = "M17,7l-1.41,1.41L18.17,11H8v2h10.17l-2.58,2.58L17,17l5,-5zM4,5h8V3H4c-1.1," +
+                    "0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h8v-2H4V5z",
+        )
+    }
+
     /** Ayar satırı sonu: ileri chevron (Material ChevronRight). */
     val ChevronRight: ImageVector by lazy {
         lyraIcon(

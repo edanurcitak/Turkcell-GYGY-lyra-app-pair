@@ -2,16 +2,21 @@ package com.turkcell.lyraapp.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.auth.OtpAuthRepository
 import com.turkcell.lyraapp.data.auth.UserStore
 import com.turkcell.lyraapp.data.auth.resolveDisplayName
 import com.turkcell.lyraapp.data.auth.resolveInitials
 import com.turkcell.lyraapp.data.membership.MembershipStore
 import com.turkcell.lyraapp.ui.theme.AppThemeController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -24,14 +29,20 @@ import javax.inject.Inject
  *   Tier kaynağı API'dir; istemci hesaplamaz, yalnızca aynalar (§2.2). Banner premium/free'ye göre değişir.
  * - [UserStore] → [ProfileUiState.displayName] + [ProfileUiState.initials]. Kullanıcının register'da
  *   girdiği ad/soyaddan türetilir (kaynak API; §2.2 — istemci uydurmaz, yalnızca biçimlendirir).
- * Gelen [ProfileIntent]'ler [onIntent] içinde reducer mantığıyla işlenir.
+ * Gelen [ProfileIntent]'ler [onIntent] içinde reducer mantığıyla işlenir. "Çıkış yap"
+ * ([ProfileIntent.Logout]) [OtpAuthRepository.logout] ile oturumu temizler ve tek seferlik
+ * [ProfileEffect.NavigateToLogin] olayını yayınlar.
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val appThemeController: AppThemeController,
     private val membershipStore: MembershipStore,
     private val userStore: UserStore,
+    private val otpAuthRepository: OtpAuthRepository,
 ) : ViewModel() {
+
+    private val _effect = Channel<ProfileEffect>(Channel.BUFFERED)
+    val effect: Flow<ProfileEffect> = _effect.receiveAsFlow()
 
     // Tema henüz seçilmemişse (null = sistem), toggle'da varsayılan olarak "Açık" vurgulanır.
     // Tier (free/premium) MembershipStore'dan, kimlik (ad/baş harf) UserStore'dan aynalanır.
@@ -58,6 +69,17 @@ class ProfileViewModel @Inject constructor(
         when (intent) {
             is ProfileIntent.ThemeChanged ->
                 appThemeController.setDarkTheme(intent.darkTheme)
+
+            ProfileIntent.Logout -> logout()
+        }
+    }
+
+    private fun logout() {
+        viewModelScope.launch {
+            // Sunucu iptali başarısız olsa da yerel oturum temizlenir (repository idempotent);
+            // her durumda login'e dönülür.
+            otpAuthRepository.logout()
+            _effect.send(ProfileEffect.NavigateToLogin)
         }
     }
 }
