@@ -3,11 +3,13 @@ package com.turkcell.lyraapp.ui.playlistdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.favorites.FavoritesRepository
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,6 +27,7 @@ import kotlin.coroutines.cancellation.CancellationException
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
+    private val favoritesRepository: FavoritesRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -37,6 +40,31 @@ class PlaylistDetailViewModel @Inject constructor(
 
     init {
         load()
+        observeFavoritesIfLiked()
+    }
+
+    /**
+     * "Beğenilen Şarkılar" listesi açıkken favori kümesi ([FavoritesRepository.likedIds]) değişirse
+     * şarkı listesini sessizce tazeler — böylece ekran dinamik kalır (elle yenileme gerekmez). İlk
+     * emisyon atlanır ([drop]); ilk içeriği zaten [load] getirir. Diğer listeler için etkisizdir.
+     */
+    private fun observeFavoritesIfLiked() {
+        if (playlistId != PlaylistRepository.LIKED_PLAYLIST_ID) return
+        viewModelScope.launch {
+            favoritesRepository.likedIds
+                .drop(1)
+                .collect { reloadSilently() }
+        }
+    }
+
+    /** Şarkı listesini tam-ekran spinner göstermeden günceller (reaktif favori değişimi için). */
+    private fun reloadSilently() {
+        viewModelScope.launch {
+            runCatching { playlistRepository.getPlaylistDetail(playlistId) }
+                .onSuccess { detail ->
+                    _uiState.update { it.copy(title = detail.name, songs = detail.songs) }
+                }
+        }
     }
 
     fun onIntent(intent: PlaylistDetailIntent) {

@@ -48,6 +48,9 @@ sealed interface PlayerIntent {
     /** Aktif şarkıyı cihaza indir (çevrimdışı çalma için cache'e yazar). */
     data object Download : PlayerIntent
 
+    /** Aktif şarkıyı beğen/beğeniyi kaldır (favori kullanıcı çalma listesine ekler/çıkarır). */
+    data object ToggleFavorite : PlayerIntent
+
     /** Hata sonrası yeniden yükle. */
     data object Retry : PlayerIntent
 }

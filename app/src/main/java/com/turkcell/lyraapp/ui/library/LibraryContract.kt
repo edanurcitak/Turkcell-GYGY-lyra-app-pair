@@ -19,7 +19,6 @@ data class LibraryUiState(
     val sortOrder: LibrarySortOrder = LibrarySortOrder.RECENT,
     val isOffline: Boolean = false,
     val isLoading: Boolean = true,
-    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -32,13 +31,6 @@ sealed interface LibraryIntent {
 
     /** Çalma listelerini yeniden yükler (hata sonrası tekrar dene). */
     data object Refresh : LibraryIntent
-
-    /**
-     * Kullanıcının aşağı çekme (pull-to-refresh) hareketi. [Refresh] ile aynı yüklemeyi yapar ancak
-     * tam-ekran spinner yerine üstteki dönen göstergeyi besler ([LibraryUiState.isRefreshing]) ve
-     * mevcut liste görünür kalır.
-     */
-    data object PullRefresh : LibraryIntent
 }
 
 /** Üstteki filtre sekmeleri (salt görsel; seçili sekme sabittir). */

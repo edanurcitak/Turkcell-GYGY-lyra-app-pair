@@ -127,7 +127,7 @@ private fun PlayerScreen(
                 isDownloaded = uiState.isDownloaded,
                 isDownloading = uiState.isDownloading,
                 isPremium = uiState.isPremium,
-                onToggleFavorite = { /* §talep: favori şimdilik boş */ },
+                onToggleFavorite = { onIntent(PlayerIntent.ToggleFavorite) },
                 onDownload = { onIntent(PlayerIntent.Download) },
             )
             if (uiState.isAd) {
@@ -262,7 +262,12 @@ private fun NowPlayingInfo(
             Icon(
                 imageVector = LyraIcons.Favorite,
                 contentDescription = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
-                tint = MaterialTheme.colorScheme.primary,
+                // Beğeniliyken vurgulu (primary); değilken sönük (onSurfaceVariant) — durum görsel geri bildirim.
+                tint = if (isFavorite) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 modifier = Modifier.size(28.dp),
             )
         }

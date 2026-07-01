@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.turkcell.lyraapp.data.download.DownloadRepository
 import com.turkcell.lyraapp.data.download.DownloadStore
 import com.turkcell.lyraapp.data.download.PremiumRequiredException
+import com.turkcell.lyraapp.data.favorites.FavoritesRepository
 import com.turkcell.lyraapp.data.feed.Song
 import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.data.membership.MembershipStore
@@ -71,6 +72,7 @@ class PlayerViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val downloadStore: DownloadStore,
     private val membershipStore: MembershipStore,
+    private val favoritesRepository: FavoritesRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -106,6 +108,8 @@ class PlayerViewModel @Inject constructor(
     init {
         observeDownloads()
         observePremium()
+        observeFavorites()
+        refreshFavorites()
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val future = MediaController.Builder(context, token).buildAsync()
         controllerFuture = future
@@ -130,7 +134,30 @@ class PlayerViewModel @Inject constructor(
             PlayerIntent.SkipNext -> skipNext()
             PlayerIntent.SkipPrevious -> controller?.seekToPrevious()
             PlayerIntent.Download -> onDownloadClicked()
+            PlayerIntent.ToggleFavorite -> toggleFavorite()
             PlayerIntent.Retry -> load()
+        }
+    }
+
+    /**
+     * Aktif şarkıyı beğenir/beğeniyi kaldırır. Kalp **iyimser** anında değişir; API çağrısı
+     * ([FavoritesRepository]) başarısız olursa (ve hâlâ aynı şarkı gösteriliyorsa) durum geri alınır.
+     * Reklam çalarken ya da şarkı yoksa yok sayılır.
+     */
+    private fun toggleFavorite() {
+        val state = _uiState.value
+        val songId = state.songId
+        if (songId.isEmpty() || state.isAd) return
+        val nowFavorite = !state.isFavorite
+        _uiState.update { it.copy(isFavorite = nowFavorite) }
+        viewModelScope.launch {
+            val result = runCatching {
+                if (nowFavorite) favoritesRepository.add(songId) else favoritesRepository.remove(songId)
+            }
+            if (result.isFailure) {
+                // İyimser değişikliği geri al (yalnızca ekranda hâlâ aynı şarkı varsa).
+                _uiState.update { if (it.songId == songId) it.copy(isFavorite = !nowFavorite) else it }
+            }
         }
     }
 
@@ -168,6 +195,25 @@ class PlayerViewModel @Inject constructor(
                     state.copy(isDownloaded = downloads.any { it.id == state.songId })
                 }
             }
+        }
+    }
+
+    /**
+     * Beğenilen şarkı kümesi ([FavoritesRepository.likedIds]) değiştikçe aktif şarkının favori
+     * durumunu UI'a yansıtır (bir şarkı başka ekrandan/başka cihazdan beğenilse de senkron kalır).
+     */
+    private fun observeFavorites() {
+        viewModelScope.launch {
+            favoritesRepository.likedIds.collect { liked ->
+                _uiState.update { it.copy(isFavorite = liked.contains(it.songId)) }
+            }
+        }
+    }
+
+    /** Favori listesini API'den bir kez tazeler (kalp durumunun ilk yüklemede doğru olması için). */
+    private fun refreshFavorites() {
+        viewModelScope.launch {
+            runCatching { favoritesRepository.refresh() }
         }
     }
 
@@ -228,6 +274,7 @@ class PlayerViewModel @Inject constructor(
                 isAd = isAd,
                 adAdvertiser = if (isAd) item.mediaMetadata.artist?.toString().orEmpty() else "",
                 isDownloaded = if (isAd) it.isDownloaded else downloadStore.isDownloaded(newSongId),
+                isFavorite = if (isAd) it.isFavorite else favoritesRepository.isLiked(newSongId),
             )
         }
     }

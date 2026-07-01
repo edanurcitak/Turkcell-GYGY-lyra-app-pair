@@ -3,6 +3,7 @@ package com.turkcell.lyraapp.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.connectivity.ConnectivityObserver
+import com.turkcell.lyraapp.data.favorites.FavoritesRepository
 import com.turkcell.lyraapp.data.playlist.Playlist
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +26,7 @@ import kotlin.coroutines.cancellation.CancellationException
 class LibraryViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val connectivityObserver: ConnectivityObserver,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -32,6 +34,7 @@ class LibraryViewModel @Inject constructor(
 
     init {
         observeConnectivity()
+        observeFavorites()
     }
 
     fun onIntent(intent: LibraryIntent) {
@@ -56,8 +59,6 @@ class LibraryViewModel @Inject constructor(
             }
 
             LibraryIntent.Refresh -> load(connectivityObserver.currentlyOnline())
-            LibraryIntent.PullRefresh ->
-                load(connectivityObserver.currentlyOnline(), isPull = true)
         }
     }
 
@@ -69,19 +70,33 @@ class LibraryViewModel @Inject constructor(
     }
 
     /**
-     * Çalma listelerini yükler. [isPull] `true` ise (pull-to-refresh) tam-ekran spinner gösterilmez;
-     * mevcut liste görünür kalır, yenileme yalnızca üstteki dönen göstergeyle ([LibraryUiState.isRefreshing])
-     * belirtilir ve başarısız tazelemede içerik korunur (FeedViewModel deseni).
+     * Beğenilen şarkı kümesi ([FavoritesRepository.likedIds]) değiştikçe "Beğenilen Şarkılar"
+     * listesinin şarkı sayısını **anında** günceller — böylece bir şarkı Player'da beğenilince
+     * Kütüphane'deki sayı elle yenileme (pull-to-refresh) gerekmeden canlı değişir.
      */
-    private fun load(online: Boolean, isPull: Boolean = false) {
+    private fun observeFavorites() {
+        viewModelScope.launch {
+            favoritesRepository.likedIds.collect { liked ->
+                _uiState.update { state ->
+                    state.copy(
+                        playlists = state.playlists.map { playlist ->
+                            if (playlist.isLiked) playlist.copy(songCount = liked.size) else playlist
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Çalma listelerini yükler (ekrana giriş ve bağlantı değişiminde). Çevrimdışıyken ağ uçlarına
+     * dokunmadan yalnızca "İndirilen Şarkılar" gösterilir. "Beğenilen Şarkılar" sayısı ayrıca
+     * [observeFavorites] ile canlı tutulur (pull-to-refresh kaldırıldı — dinamik yapı).
+     */
+    private fun load(online: Boolean) {
         viewModelScope.launch {
             _uiState.update {
-                it.copy(
-                    isLoading = if (isPull) it.isLoading else true,
-                    isRefreshing = isPull,
-                    errorMessage = null,
-                    isOffline = !online,
-                )
+                it.copy(isLoading = true, errorMessage = null, isOffline = !online)
             }
             // Çevrimdışı: ağ uçlarına hiç dokunmadan yalnızca "İndirilen Şarkılar" (varsa).
             if (!online) {
@@ -92,7 +107,6 @@ class LibraryViewModel @Inject constructor(
                     it.copy(
                         playlists = offlinePlaylists,
                         isLoading = false,
-                        isRefreshing = false,
                         isOffline = true,
                     )
                 }
@@ -104,24 +118,17 @@ class LibraryViewModel @Inject constructor(
                     it.copy(
                         playlists = playlists.sortedFor(it.sortOrder),
                         isLoading = false,
-                        isRefreshing = false,
                         isOffline = false,
                     )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Pull-to-refresh'te liste varsa koru (sessiz başarısızlık); aksi halde hatayı göster.
                 _uiState.update {
-                    if (isPull && it.playlists.isNotEmpty()) {
-                        it.copy(isLoading = false, isRefreshing = false)
-                    } else {
-                        it.copy(
-                            isLoading = false,
-                            isRefreshing = false,
-                            errorMessage = "Çalma listeleri yüklenemedi. Lütfen tekrar deneyin.",
-                        )
-                    }
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Çalma listeleri yüklenemedi. Lütfen tekrar deneyin.",
+                    )
                 }
             }
         }

@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -111,10 +110,9 @@ private fun LibraryScreen(
         Spacer(Modifier.height(8.dp))
 
         // İçerik alanı: yükleniyor / hata / boş / liste|ızgara durumları (FeedScreen deseni).
-        // Aşağı çekince ([LibraryIntent.PullRefresh]) liste görünür kalarak üstte yenileme göstergesi döner.
-        PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = { onIntent(LibraryIntent.PullRefresh) },
+        // "Beğenilen Şarkılar" sayısı favori değişiminde ViewModel tarafından canlı güncellenir
+        // (pull-to-refresh kaldırıldı — dinamik yapı).
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),

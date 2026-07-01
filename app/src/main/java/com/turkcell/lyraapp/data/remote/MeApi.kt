@@ -1,18 +1,26 @@
 package com.turkcell.lyraapp.data.remote
 
+import com.turkcell.lyraapp.data.remote.dto.AddTrackBody
+import com.turkcell.lyraapp.data.remote.dto.AddTrackResponseDto
 import com.turkcell.lyraapp.data.remote.dto.AdCompleteBody
 import com.turkcell.lyraapp.data.remote.dto.AdCompleteResponseDto
+import com.turkcell.lyraapp.data.remote.dto.CreatePlaylistBody
 import com.turkcell.lyraapp.data.remote.dto.PlaybackNextBody
 import com.turkcell.lyraapp.data.remote.dto.PlaybackNextResponseDto
+import com.turkcell.lyraapp.data.remote.dto.PlaylistResponseDto
+import com.turkcell.lyraapp.data.remote.dto.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.RecordPlayBody
 import com.turkcell.lyraapp.data.remote.dto.RecordPlayResponseDto
+import com.turkcell.lyraapp.data.remote.dto.RemoveTrackResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.UpdateInformationsBody
 import com.turkcell.lyraapp.data.remote.dto.UserResponseDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -100,4 +108,44 @@ interface MeApi {
         @Header("Authorization") authorization: String,
         @Body body: AdCompleteBody,
     ): AdCompleteResponseDto
+
+    // --- Kullanıcı çalma listeleri (favoriler "Beğenilen Şarkılar" listesiyle temsil edilir) ---
+
+    /**
+     * Kullanıcının kendi çalma listelerini (şarkısız) döndürür.
+     *
+     * Katalog listesiyle aynı zarfı (`{ data: [Playlist] }`) döndürdüğünden [PlaylistsResponseDto]
+     * yeniden kullanılır. "Beğenilen Şarkılar" listesi bu uçtan ada göre bulunur/çözülür.
+     */
+    @GET("api/v1/me/playlists")
+    suspend fun getMyPlaylists(
+        @Header("Authorization") authorization: String,
+    ): PlaylistsResponseDto
+
+    /** Yeni bir kullanıcı çalma listesi oluşturur (ilk beğenide "Beğenilen Şarkılar" için). */
+    @POST("api/v1/me/playlists")
+    suspend fun createPlaylist(
+        @Header("Authorization") authorization: String,
+        @Body body: CreatePlaylistBody,
+    ): PlaylistResponseDto
+
+    /**
+     * Bir şarkıyı kullanıcının çalma listesine ekler ("beğen").
+     *
+     * Şarkı zaten listedeyse API **409** döner; çağıran bunu "zaten beğenili" olarak tolere eder.
+     */
+    @POST("api/v1/me/playlists/{id}/tracks")
+    suspend fun addTrack(
+        @Header("Authorization") authorization: String,
+        @Path("id") playlistId: String,
+        @Body body: AddTrackBody,
+    ): AddTrackResponseDto
+
+    /** Bir şarkıyı kullanıcının çalma listesinden kaldırır ("beğeniyi kaldır"). */
+    @DELETE("api/v1/me/playlists/{id}/tracks/{songId}")
+    suspend fun removeTrack(
+        @Header("Authorization") authorization: String,
+        @Path("id") playlistId: String,
+        @Path("songId") songId: String,
+    ): RemoveTrackResponseDto
 }
