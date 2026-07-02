@@ -3,6 +3,9 @@ package com.turkcell.lyraapp.ui.premium
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.membership.MembershipRepository
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,7 +86,7 @@ class PremiumPlansViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            errorMessage = "Planlar yüklenemedi. Lütfen tekrar deneyin.",
+                            errorMessage = e.toAppError().toUserMessage(ErrorContext.PREMIUM),
                         )
                     }
                 }

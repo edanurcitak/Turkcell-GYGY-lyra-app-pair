@@ -6,6 +6,9 @@ import com.turkcell.lyraapp.data.connectivity.ConnectivityObserver
 import com.turkcell.lyraapp.data.favorites.FavoritesRepository
 import com.turkcell.lyraapp.data.playlist.Playlist
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -127,7 +130,7 @@ class LibraryViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Çalma listeleri yüklenemedi. Lütfen tekrar deneyin.",
+                        errorMessage = e.toAppError().toUserMessage(ErrorContext.LIBRARY),
                     )
                 }
             }

@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.favorites.FavoritesRepository
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -109,7 +112,7 @@ class PlaylistDetailViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            errorMessage = "Çalma listesi yüklenemedi. Lütfen tekrar deneyin.",
+                            errorMessage = e.toAppError().toUserMessage(ErrorContext.PLAYLIST_DETAIL),
                         )
                     }
                 }

@@ -3,6 +3,9 @@ package com.turkcell.lyraapp.ui.createplaylist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.feed.SongRepository
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,7 +72,7 @@ class CreatePlaylistViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Şarkılar yüklenemedi. Lütfen tekrar deneyin.",
+                        errorMessage = e.toAppError().toUserMessage(ErrorContext.CREATE_PLAYLIST),
                     )
                 }
             }

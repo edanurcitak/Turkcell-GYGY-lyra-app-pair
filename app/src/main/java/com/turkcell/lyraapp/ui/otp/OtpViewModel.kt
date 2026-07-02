@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.auth.OtpAuthRepository
 import com.turkcell.lyraapp.ui.navigation.LyraDestinations
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -68,11 +71,11 @@ class OtpViewModel @Inject constructor(
                         if (needsProfile) OtpEffect.NavigateToCompleteInfo else OtpEffect.NavigateToHome,
                     )
                 }
-                .onFailure {
+                .onFailure { error ->
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
-                            errorMessage = "Kod hatalı veya süresi dolmuş. Tekrar dene.",
+                            errorMessage = error.toAppError().toUserMessage(ErrorContext.OTP),
                         )
                     }
                 }

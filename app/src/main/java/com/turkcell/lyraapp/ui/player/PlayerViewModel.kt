@@ -29,6 +29,9 @@ import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.data.membership.MembershipStore
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
 import com.turkcell.lyraapp.ui.navigation.LyraDestinations
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -331,7 +334,7 @@ class PlayerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Şarkı yüklenemedi. Lütfen tekrar deneyin.",
+                        errorMessage = e.toAppError().toUserMessage(ErrorContext.PLAYER),
                     )
                 }
             }

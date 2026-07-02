@@ -7,6 +7,10 @@ import com.turkcell.lyraapp.data.membership.CardInput
 import com.turkcell.lyraapp.data.membership.MembershipRepository
 import com.turkcell.lyraapp.data.membership.PaymentDeclinedException
 import com.turkcell.lyraapp.ui.navigation.LyraDestinations
+import com.turkcell.lyraapp.util.AppError
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -91,7 +95,7 @@ class PaymentViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = "Plan yüklenemedi. Lütfen tekrar deneyin.")
+                    it.copy(isLoading = false, errorMessage = e.toAppError().toUserMessage(ErrorContext.PAYMENT))
                 }
             }
         }
@@ -120,10 +124,12 @@ class PaymentViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = when (e) {
-                            is PaymentDeclinedException ->
-                                "Ödeme reddedildi. Kart bilgilerini kontrol edip tekrar dene."
-                            else -> "Ödeme tamamlanamadı. Lütfen tekrar dene."
+                        // Repo 402'yi PaymentDeclinedException'a çevirdiğinden toAppError onu göremez;
+                        // 402 mesajını merkezi tablodan almak için AppError.Api(402) açıkça kullanılır.
+                        errorMessage = if (e is PaymentDeclinedException) {
+                            AppError.Api(code = 402).toUserMessage(ErrorContext.PAYMENT)
+                        } else {
+                            e.toAppError().toUserMessage(ErrorContext.PAYMENT)
                         },
                     )
                 }

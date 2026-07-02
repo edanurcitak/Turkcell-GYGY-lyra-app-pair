@@ -7,6 +7,9 @@ import com.turkcell.lyraapp.data.auth.resolveDisplayName
 import com.turkcell.lyraapp.data.auth.resolveInitials
 import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.ui.theme.AppThemeController
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -120,7 +123,7 @@ class FeedViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            errorMessage = "İçerik yüklenemedi. Lütfen tekrar deneyin.",
+                            errorMessage = e.toAppError().toUserMessage(ErrorContext.HOME),
                         )
                     }
                 }

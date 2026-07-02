@@ -3,6 +3,9 @@ package com.turkcell.lyraapp.ui.register
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.auth.OtpAuthRepository
+import com.turkcell.lyraapp.util.ErrorContext
+import com.turkcell.lyraapp.util.toAppError
+import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -72,11 +75,11 @@ class RegisterViewModel @Inject constructor(
             ).onSuccess {
                 _uiState.update { it.copy(isSubmitting = false) }
                 _effect.send(RegisterEffect.NavigateToHome)
-            }.onFailure {
+            }.onFailure { error ->
                 _uiState.update {
                     it.copy(
                         isSubmitting = false,
-                        errorMessage = "Bilgiler kaydedilemedi. Kontrol edip tekrar dene.",
+                        errorMessage = error.toAppError().toUserMessage(ErrorContext.REGISTER),
                     )
                 }
             }
