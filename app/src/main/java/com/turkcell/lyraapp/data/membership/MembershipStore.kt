@@ -29,6 +29,15 @@ class MembershipStore @Inject constructor() {
     /** Sıcak akış: UI (örn. Player indir butonu) tier değişimine tepki verebilir. */
     val isPremiumFlow: StateFlow<Boolean> = _isPremium.asStateFlow()
 
+    private val _expiresAt = MutableStateFlow<String?>(null)
+
+    /**
+     * Aktif premium üyeliğin bitiş tarihi (API `Membership.expiresAt`, `date-time`); free/yoksa null.
+     * Tier gibi burada yalnızca **aynalanır** (§2.2 — istemci hesaplamaz); UI bundan kalan günü türetip
+     * banner metnini sürer (bkz. [com.turkcell.lyraapp.ui.profile.ProfileViewModel]).
+     */
+    val expiresAtFlow: StateFlow<String?> = _expiresAt.asStateFlow()
+
     /** Anlık premium kontrolü (indirme öncesi gibi senkron kararlar için). */
     val isPremium: Boolean
         get() = _isPremium.value
@@ -36,6 +45,7 @@ class MembershipStore @Inject constructor() {
     /** Login sonrası kullanıcıdan tier'ı set eder (aktif üyelik → premium). */
     fun setFromUser(user: User?) {
         _isPremium.value = user?.isPremium == true
+        _expiresAt.value = user?.membership?.expiresAt
     }
 
     /**
@@ -46,10 +56,12 @@ class MembershipStore @Inject constructor() {
      */
     fun setActive(membership: Membership) {
         _isPremium.value = membership.isActive
+        _expiresAt.value = membership.expiresAt
     }
 
     /** Logout: tier'ı sıfırla (free). */
     fun clear() {
         _isPremium.value = false
+        _expiresAt.value = null
     }
 }

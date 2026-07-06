@@ -28,6 +28,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -62,6 +63,13 @@ fun CreatePlaylistScreen(
     viewModel: CreatePlaylistViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                CreatePlaylistEffect.NavigateBack -> onNavigateBack()
+            }
+        }
+    }
     CreatePlaylistScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
@@ -85,6 +93,9 @@ private fun CreatePlaylistScreen(
     ) {
         CreatePlaylistTopBar(
             onNavigateBack = onNavigateBack,
+            canSave = uiState.canSave,
+            isSaving = uiState.isSaving,
+            onSave = { onIntent(CreatePlaylistIntent.SaveClicked) },
             modifier = Modifier.padding(horizontal = 8.dp),
         )
 
@@ -144,6 +155,9 @@ private fun CreatePlaylistScreen(
 @Composable
 private fun CreatePlaylistTopBar(
     onNavigateBack: () -> Unit,
+    canSave: Boolean,
+    isSaving: Boolean,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -167,25 +181,45 @@ private fun CreatePlaylistTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        // Kaydet: işlevsiz muted pill — kayıt uç noktası yok (§2.2 / §4.6), bu yüzden tıklama bağlanmaz.
-        SaveButton()
+        SaveButton(enabled = canSave, isSaving = isSaving, onClick = onSave)
     }
 }
 
-/** Görsel olarak var olan ancak işlevsiz "Kaydet" düğmesi (kayıt uç noktası gelene kadar). */
+/**
+ * "Kaydet" düğmesi: ad girildiğinde marka (primary) renginde ve tıklanabilir, aksi halde muted/pasif.
+ * Kaydetme sırasında yerine dönen bir gösterge çizer.
+ */
 @Composable
-private fun SaveButton() {
+private fun SaveButton(
+    enabled: Boolean,
+    isSaving: Boolean,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        color = if (enabled) scheme.primary else scheme.surfaceContainerHighest,
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
     ) {
-        Text(
-            text = "Kaydet",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-        )
+        ) {
+            if (isSaving) {
+                CircularProgressIndicator(
+                    color = scheme.primary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(18.dp),
+                )
+            } else {
+                Text(
+                    text = "Kaydet",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (enabled) scheme.onPrimary else scheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

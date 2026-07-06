@@ -18,12 +18,17 @@ package com.turkcell.lyraapp.ui.profile
  * [isPremium]: tier kaynağı API'dir (istemci hesaplamaz, §2.2); ViewModel bunu
  * [com.turkcell.lyraapp.data.membership.MembershipStore] üzerinden türetir. Banner ve header alt
  * satırı ([membership]) buna göre değişir (premium → "Premium · 3 gün", free → "Ücretsiz").
+ *
+ * [premiumDaysRemaining]: premium ise `Membership.expiresAt`'ten türetilen kalan tam gün (kaynak
+ * API; §2.2 — istemci tier'ı hesaplamaz, yalnızca bitiş tarihinden görünüm türetir). Banner son 3
+ * güne kadar "Premium üyelik", son 3 günde "Premium · {n} gün kaldı" gösterir. null → normal metin.
  */
 data class ProfileUiState(
     val initials: String = "LK",
     val displayName: String = "Lyra Kullanıcısı",
     val isPremium: Boolean = true,
     val membership: String = "Premium · 3 gün",
+    val premiumDaysRemaining: Int? = null,
     val playlistCount: String = "127",
     val followerCount: String = "1.2B",
     val followingCount: String = "348",

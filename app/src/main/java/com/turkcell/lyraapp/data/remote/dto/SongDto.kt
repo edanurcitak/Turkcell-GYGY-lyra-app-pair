@@ -41,6 +41,12 @@ fun SongDto.toDomain(): Song = Song(
     durationMs = durationMs,
 )
 
+/** `GET /api/v1/songs/{id}` yanıt zarfı: tekil şarkı (`{ data: Song }`). */
+@Serializable
+data class SongResponseDto(
+    val data: SongDto,
+)
+
 /**
  * `GET /api/v1/songs/{id}/stream-url` yanıt zarfı.
  */

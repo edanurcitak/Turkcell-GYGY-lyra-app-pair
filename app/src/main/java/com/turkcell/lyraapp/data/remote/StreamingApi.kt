@@ -5,6 +5,7 @@ import com.turkcell.lyraapp.data.remote.dto.CheckoutResponseDto
 import com.turkcell.lyraapp.data.remote.dto.MembershipPlansResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistDetailResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistsResponseDto
+import com.turkcell.lyraapp.data.remote.dto.SongResponseDto
 import com.turkcell.lyraapp.data.remote.dto.SongsResponseDto
 import com.turkcell.lyraapp.data.remote.dto.StreamUrlResponseDto
 import retrofit2.http.Body
@@ -35,6 +36,15 @@ interface StreamingApi {
         @Query("cursor") cursor: String? = null,
         @Query("q") query: String? = null,
     ): SongsResponseDto
+
+    /**
+     * Tek bir şarkının detayını id ile döndürür.
+     *
+     * **Public** — auth gerektirmez (bkz. `docs/api/openapi.json` → `songs`); katalog listesiyle aynı
+     * `Song` şemasını taşıdığından [SongResponseDto] tekil zarfı kullanılır.
+     */
+    @GET("api/v1/songs/{id}")
+    suspend fun getSong(@Path("id") id: String): SongResponseDto
 
     /**
      * Bir şarkı için kısa ömürlü imzalı akış URL'i üretir (oynatmadan hemen önce çağrılır).

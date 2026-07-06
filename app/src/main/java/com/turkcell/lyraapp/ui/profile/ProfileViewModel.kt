@@ -17,7 +17,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
+
+/** Bir günün milisaniyesi — premium bitişine kalan gün hesabı için. */
+private const val MILLIS_PER_DAY = 86_400_000L
 
 /**
  * Profil ekranının MVI ViewModel'i (AGENTS.MD §4.4).
@@ -49,8 +55,9 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = combine(
         appThemeController.darkTheme,
         membershipStore.isPremiumFlow,
+        membershipStore.expiresAtFlow,
         userStore.userFlow,
-    ) { dark, isPremium, user ->
+    ) { dark, isPremium, expiresAt, user ->
         val name = user.resolveDisplayName() ?: ProfileUiState().displayName
         ProfileUiState(
             displayName = name,
@@ -58,6 +65,7 @@ class ProfileViewModel @Inject constructor(
             isDarkTheme = dark ?: false,
             isPremium = isPremium,
             membership = if (isPremium) "Premium · 3 gün" else "Ücretsiz",
+            premiumDaysRemaining = if (isPremium) premiumDaysRemaining(expiresAt) else null,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -81,5 +89,30 @@ class ProfileViewModel @Inject constructor(
             otpAuthRepository.logout()
             _effect.send(ProfileEffect.NavigateToLogin)
         }
+    }
+
+    /**
+     * Premium üyeliğin bitişine kalan tam gün (UTC takvim günü farkı; en az 0). Banner metnini sürer:
+     * 3 günden fazla → "Premium üyelik", son 3 gün → "Premium · {n} gün kaldı".
+     *
+     * [expiresAt] API'nin `date-time` alanıdır ([com.turkcell.lyraapp.data.auth.Membership.expiresAt]);
+     * yalnızca tarih kısmı (`yyyy-MM-dd`) okunur, böylece saat dilimi/offset/millis biçimlerinden
+     * bağımsız kalınır. Tier hesaplanmaz, yalnızca API bitiş tarihinden görünüm türetilir (§2.2).
+     * null/parse edilemezse `null` döner (verisiz uyarı gösterilmez).
+     *
+     * Not: `java.time` yerine [SimpleDateFormat] kullanılır; minSdk 24'te desugaring bağımlılığı
+     * eklemeden çalışması için (`X`/UTC parse'ı API 24'te desteklenir).
+     */
+    private fun premiumDaysRemaining(expiresAt: String?): Int? {
+        if (expiresAt.isNullOrBlank()) return null
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+        }
+        val expiryMillis = runCatching { formatter.parse(expiresAt.substringBefore('T'))?.time }
+            .getOrNull() ?: return null
+        val expiryEpochDay = expiryMillis / MILLIS_PER_DAY
+        val todayEpochDay = System.currentTimeMillis() / MILLIS_PER_DAY
+        return (expiryEpochDay - todayEpochDay).toInt().coerceAtLeast(0)
     }
 }

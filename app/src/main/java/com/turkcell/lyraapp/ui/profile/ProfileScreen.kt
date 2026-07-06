@@ -38,6 +38,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.turkcell.lyraapp.ui.icons.LyraIcons
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
+/** Premium banner son bu kadar gün kala geri sayıma döner; üstünde "Premium üyelik" gösterilir. */
+private const val PREMIUM_EXPIRY_WARNING_DAYS = 3
+
 /**
  * Profil ekranı — stateful giriş noktası (AGENTS.MD §4.5).
  *
@@ -104,13 +107,24 @@ private fun ProfileScreen(
         Spacer(Modifier.height(24.dp))
 
         // Plan banner'ı tier'a göre değişir (kaynak: MembershipStore → uiState.isPremium).
+        // Premium'da metin kalan güne göre değişir: 3 günden fazlaysa "Premium üyelik", son 3 günde
+        // geri sayım (kaynak: Membership.expiresAt → uiState.premiumDaysRemaining). Free banner değişmez.
         // Her iki banner da tıklanınca premium plan seçim ekranına yönlendirir.
         if (uiState.isPremium) {
-            PlanBanner(
-                title = "Premium · 3 gün kaldı",
-                subtitle = "Yenile ya da aboneliğe geç",
-                onClick = onUpgradeClick,
-            )
+            val daysRemaining = uiState.premiumDaysRemaining
+            if (daysRemaining != null && daysRemaining <= PREMIUM_EXPIRY_WARNING_DAYS) {
+                PlanBanner(
+                    title = "Premium · $daysRemaining gün kaldı",
+                    subtitle = "Yenile ya da aboneliğe geç",
+                    onClick = onUpgradeClick,
+                )
+            } else {
+                PlanBanner(
+                    title = "Premium üyelik",
+                    subtitle = "Aboneliğin devam ediyor",
+                    onClick = onUpgradeClick,
+                )
+            }
         } else {
             PlanBanner(
                 title = "Premium'a yükselt",
@@ -471,7 +485,7 @@ private fun settingIcon(id: String): ImageVector = when (id) {
     else -> LyraIcons.Settings
 }
 
-@Preview(name = "Profile • Premium • Light", showBackground = true)
+@Preview(name = "Profile • Premium (27 gün) • Light", showBackground = true)
 @Composable
 private fun ProfileScreenLightPreview() {
     LyraAppTheme(darkTheme = false) {
@@ -482,6 +496,7 @@ private fun ProfileScreenLightPreview() {
                     displayName = "Zeynep Kaya",
                     isDarkTheme = false,
                     isPremium = true,
+                    premiumDaysRemaining = 27,
                 ),
                 onIntent = {},
                 onUpgradeClick = {},
@@ -490,7 +505,7 @@ private fun ProfileScreenLightPreview() {
     }
 }
 
-@Preview(name = "Profile • Premium • Dark", showBackground = true)
+@Preview(name = "Profile • Premium (son 3 gün) • Dark", showBackground = true)
 @Composable
 private fun ProfileScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
@@ -501,6 +516,7 @@ private fun ProfileScreenDarkPreview() {
                     displayName = "Zeynep Kaya",
                     isDarkTheme = true,
                     isPremium = true,
+                    premiumDaysRemaining = 2,
                 ),
                 onIntent = {},
                 onUpgradeClick = {},

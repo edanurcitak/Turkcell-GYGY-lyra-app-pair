@@ -53,3 +53,14 @@ data class RemoveTrackResponseDto(
 data class RemoveTrackDataDto(
     val removed: Boolean = false,
 )
+
+/** `DELETE /me/playlists/{id}` yanıt zarfı: `{ data: { deleted: true } }` (liste ve tüm parçaları silinir). */
+@Serializable
+data class DeletePlaylistResponseDto(
+    val data: DeletePlaylistDataDto = DeletePlaylistDataDto(),
+)
+
+@Serializable
+data class DeletePlaylistDataDto(
+    val deleted: Boolean = false,
+)

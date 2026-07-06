@@ -41,27 +41,35 @@ data class PlaylistDetailDto(
     val name: String = "",
     val description: String? = null,
     val createdAt: String? = null,
+    /** Sahip kullanıcı id'si; public/öne çıkan listelerde `null` (bkz. openapi `Playlist.ownerId`). */
+    val ownerId: String? = null,
     val songs: List<SongDto> = emptyList(),
 )
 
-/** DTO → domain [PlaylistDetail] dönüşümü (şarkılar [SongDto.toDomain] ile çevrilir). */
+/**
+ * DTO → domain [PlaylistDetail] dönüşümü (şarkılar [SongDto.toDomain] ile çevrilir).
+ *
+ * [PlaylistDetail.isOwned], `ownerId` doluysa `true` (kullanıcının kendi listesi → düzenlenebilir).
+ */
 fun PlaylistDetailDto.toDomain(): PlaylistDetail = PlaylistDetail(
     id = id,
     name = name,
     description = description,
     songs = songs.map { it.toDomain() },
+    isOwned = ownerId != null,
 )
 
 /**
  * DTO → domain [Playlist] dönüşümü.
  *
  * [songCount] liste ucunda gelmediğinden çağıran tarafça (repository) detay ucundan sayılıp
- * verilir.
+ * verilir. [isOwned] de çağıran tarafça belirlenir (`me/playlists` → owned; public → değil).
  */
-fun PlaylistDto.toDomain(songCount: Int): Playlist = Playlist(
+fun PlaylistDto.toDomain(songCount: Int, isOwned: Boolean = false): Playlist = Playlist(
     id = id,
     name = name,
     description = description,
     songCount = songCount,
     createdAt = createdAt,
+    isOwned = isOwned,
 )

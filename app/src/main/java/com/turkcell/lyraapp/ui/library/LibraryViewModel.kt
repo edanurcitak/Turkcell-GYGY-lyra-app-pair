@@ -62,6 +62,56 @@ class LibraryViewModel @Inject constructor(
             }
 
             LibraryIntent.Refresh -> load(connectivityObserver.currentlyOnline())
+
+            is LibraryIntent.RequestDeletePlaylist ->
+                _uiState.update { it.copy(pendingDelete = intent.playlist) }
+
+            LibraryIntent.DismissDeleteDialog ->
+                _uiState.update { it.copy(pendingDelete = null) }
+
+            LibraryIntent.ConfirmDeletePlaylist -> deletePlaylist()
+
+            LibraryIntent.ScreenResumed -> refreshQuietly()
+        }
+    }
+
+    /**
+     * Onaylanan (owned) listeyi siler. Başarıda listeden düşürülür; hata (403/404 vb.) durumunda
+     * liste değişmez, dialog kapanır (en iyi çaba — tam-ekran hata gösterip listeyi gizlemez).
+     */
+    private fun deletePlaylist() {
+        val target = _uiState.value.pendingDelete ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true) }
+            val result = runCatching { playlistRepository.deletePlaylist(target.id) }
+            _uiState.update { state ->
+                if (result.isSuccess) {
+                    state.copy(
+                        playlists = state.playlists.filterNot { it.id == target.id },
+                        pendingDelete = null,
+                        isDeleting = false,
+                    )
+                } else {
+                    state.copy(pendingDelete = null, isDeleting = false)
+                }
+            }
+        }
+    }
+
+    /**
+     * Listeyi tam-ekran spinner göstermeden tazeler (ekrana her dönüşte). Böylece oluşturma/detay
+     * düzenlemeleri (yeni liste, güncel şarkı sayısı) elle yenileme gerekmeden yansır. Çevrimdışıyken
+     * ağ uçlarına dokunmaz; mevcut (indirilenler) görünüm korunur.
+     */
+    private fun refreshQuietly() {
+        if (!connectivityObserver.currentlyOnline()) return
+        viewModelScope.launch {
+            runCatching { playlistRepository.getPlaylists() }
+                .onSuccess { playlists ->
+                    _uiState.update {
+                        it.copy(playlists = playlists.sortedFor(it.sortOrder), isOffline = false)
+                    }
+                }
         }
     }
 

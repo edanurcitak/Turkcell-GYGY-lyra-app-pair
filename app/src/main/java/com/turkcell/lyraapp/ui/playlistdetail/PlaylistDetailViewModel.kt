@@ -4,11 +4,15 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.favorites.FavoritesRepository
+import com.turkcell.lyraapp.data.feed.SongRepository
 import com.turkcell.lyraapp.data.playlist.PlaylistRepository
 import com.turkcell.lyraapp.util.ErrorContext
 import com.turkcell.lyraapp.util.toAppError
 import com.turkcell.lyraapp.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +34,7 @@ import kotlin.coroutines.cancellation.CancellationException
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
+    private val songRepository: SongRepository,
     private val favoritesRepository: FavoritesRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -65,7 +70,9 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { playlistRepository.getPlaylistDetail(playlistId) }
                 .onSuccess { detail ->
-                    _uiState.update { it.copy(title = detail.name, songs = detail.songs) }
+                    _uiState.update {
+                        it.copy(title = detail.name, songs = detail.songs, isOwned = detail.isOwned)
+                    }
                 }
         }
     }
@@ -74,6 +81,80 @@ class PlaylistDetailViewModel @Inject constructor(
         when (intent) {
             PlaylistDetailIntent.Retry -> load()
             PlaylistDetailIntent.PullRefresh -> load(isPull = true)
+            is PlaylistDetailIntent.RemoveSong -> removeSong(intent.songId)
+            PlaylistDetailIntent.OpenAddSheet -> openAddSheet()
+            PlaylistDetailIntent.CloseAddSheet ->
+                _uiState.update { it.copy(showAddSheet = false, selectedToAdd = emptySet()) }
+            is PlaylistDetailIntent.ToggleAddSelection -> toggleAddSelection(intent.songId)
+            PlaylistDetailIntent.ConfirmAddSongs -> confirmAddSongs()
+        }
+    }
+
+    /**
+     * Bir şarkıyı listeden çıkarır (owned liste). İyimser: UI'dan hemen düşer; API hatasında
+     * gerçek durum sunucudan sessizce geri getirilir.
+     */
+    private fun removeSong(songId: String) {
+        _uiState.update { it.copy(songs = it.songs.filterNot { s -> s.id == songId }) }
+        viewModelScope.launch {
+            runCatching { playlistRepository.removeSong(playlistId, songId) }
+                .onFailure { reloadSilently() }
+        }
+    }
+
+    /** Ekleme sayfasını açar ve katalağu (listede olmayan şarkılar) yükler. */
+    private fun openAddSheet() {
+        _uiState.update {
+            it.copy(showAddSheet = true, isCatalogLoading = true, selectedToAdd = emptySet())
+        }
+        viewModelScope.launch {
+            val existing = _uiState.value.songs.map { it.id }.toSet()
+            val catalog = runCatching { songRepository.getSongs() }.getOrDefault(emptyList())
+                .filterNot { it.id in existing }
+            _uiState.update { it.copy(catalogSongs = catalog, isCatalogLoading = false) }
+        }
+    }
+
+    private fun toggleAddSelection(songId: String) {
+        _uiState.update {
+            val next = if (songId in it.selectedToAdd) {
+                it.selectedToAdd - songId
+            } else {
+                it.selectedToAdd + songId
+            }
+            it.copy(selectedToAdd = next)
+        }
+    }
+
+    /**
+     * Seçili şarkıları listeye ekler (paralel; en iyi çaba — tekil ekleme hatası diğerlerini engellemez),
+     * ardından gerçek durumu sunucudan tazeleyip ekleme sayfasını kapatır.
+     */
+    private fun confirmAddSongs() {
+        val toAdd = _uiState.value.selectedToAdd.toList()
+        if (toAdd.isEmpty()) {
+            _uiState.update { it.copy(showAddSheet = false) }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAddingSongs = true) }
+            coroutineScope {
+                toAdd.map { songId ->
+                    async { runCatching { playlistRepository.addSong(playlistId, songId) } }
+                }.awaitAll()
+            }
+            val detail = runCatching { playlistRepository.getPlaylistDetail(playlistId) }.getOrNull()
+            _uiState.update {
+                it.copy(
+                    title = detail?.name ?: it.title,
+                    songs = detail?.songs ?: it.songs,
+                    isOwned = detail?.isOwned ?: it.isOwned,
+                    isAddingSongs = false,
+                    showAddSheet = false,
+                    selectedToAdd = emptySet(),
+                    catalogSongs = emptyList(),
+                )
+            }
         }
     }
 
@@ -97,6 +178,7 @@ class PlaylistDetailViewModel @Inject constructor(
                     it.copy(
                         title = detail.name,
                         songs = detail.songs,
+                        isOwned = detail.isOwned,
                         isLoading = false,
                         isRefreshing = false,
                     )

@@ -1,7 +1,9 @@
 package com.turkcell.lyraapp.ui.library
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +23,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -33,6 +38,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.turkcell.lyraapp.data.playlist.Playlist
 import com.turkcell.lyraapp.ui.icons.LyraIcons
@@ -64,6 +74,10 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Ekran her öne geldiğinde (oluşturma/detaydan dönüş) listeyi sessizce tazele.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.onIntent(LibraryIntent.ScreenResumed)
+    }
     LibraryScreen(
         uiState = uiState,
         onIntent = viewModel::onIntent,
@@ -126,12 +140,55 @@ private fun LibraryScreen(
 
                 uiState.playlists.isEmpty() -> EmptyState()
                 uiState.viewMode == LibraryViewMode.LIST ->
-                    PlaylistList(uiState.playlists, onPlaylistClick)
+                    PlaylistList(
+                        playlists = uiState.playlists,
+                        onPlaylistClick = onPlaylistClick,
+                        onRequestDelete = { onIntent(LibraryIntent.RequestDeletePlaylist(it)) },
+                    )
 
-                else -> PlaylistGrid(uiState.playlists, onPlaylistClick)
+                else -> PlaylistGrid(
+                    playlists = uiState.playlists,
+                    onPlaylistClick = onPlaylistClick,
+                    onRequestDelete = { onIntent(LibraryIntent.RequestDeletePlaylist(it)) },
+                )
             }
         }
     }
+
+    // Owned liste silme onayı (kalıcı silme).
+    uiState.pendingDelete?.let { target ->
+        DeleteConfirmDialog(
+            playlistName = target.name,
+            isDeleting = uiState.isDeleting,
+            onConfirm = { onIntent(LibraryIntent.ConfirmDeletePlaylist) },
+            onDismiss = { onIntent(LibraryIntent.DismissDeleteDialog) },
+        )
+    }
+}
+
+/** Owned çalma listesini kalıcı silmeden önce onay isteyen dialog. */
+@Composable
+private fun DeleteConfirmDialog(
+    playlistName: String,
+    isDeleting: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Çalma listesini sil") },
+        text = { Text("\"$playlistName\" listesi ve içindeki tüm şarkılar kalıcı olarak silinecek.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !isDeleting) {
+                Text("Sil", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isDeleting) {
+                Text("Vazgeç")
+            }
+        },
+    )
 }
 
 @Composable
@@ -260,6 +317,7 @@ private fun LibrarySortRow(
 private fun PlaylistList(
     playlists: List<Playlist>,
     onPlaylistClick: (String) -> Unit,
+    onRequestDelete: (Playlist) -> Unit,
 ) {
     val palettes = playlistPalettes()
     LazyColumn(
@@ -272,6 +330,7 @@ private fun PlaylistList(
                 playlist = playlist,
                 palette = palettes[index % palettes.size],
                 onClick = { onPlaylistClick(playlist.id) },
+                onRequestDelete = { onRequestDelete(playlist) },
             )
         }
     }
@@ -282,6 +341,7 @@ private fun PlaylistRow(
     playlist: Playlist,
     palette: PlaylistPalette,
     onClick: () -> Unit,
+    onRequestDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -314,15 +374,51 @@ private fun PlaylistRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        // Salt görsel: sabitlenmiş listede iğne, diğerlerinde "daha fazla" ikonu (§4.6).
-        Icon(
-            imageVector = if (playlist.isPinned) LyraIcons.PushPin else LyraIcons.MoreVert,
-            contentDescription = if (playlist.isPinned) "Sabitlenmiş" else "Daha fazla",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .size(40.dp)
-                .padding(8.dp),
-        )
+        // Owned listede işlevsel "⋮" menüsü (Sil); sabitlenende iğne, diğerlerinde salt görsel ikon.
+        when {
+            playlist.isPinned -> Icon(
+                imageVector = LyraIcons.PushPin,
+                contentDescription = "Sabitlenmiş",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(40.dp)
+                    .padding(8.dp),
+            )
+
+            playlist.isOwned -> {
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = LyraIcons.MoreVert,
+                            contentDescription = "Daha fazla",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Çalma listesini sil") },
+                            onClick = {
+                                menuExpanded = false
+                                onRequestDelete()
+                            },
+                        )
+                    }
+                }
+            }
+
+            else -> Icon(
+                imageVector = LyraIcons.MoreVert,
+                contentDescription = "Daha fazla",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(40.dp)
+                    .padding(8.dp),
+            )
+        }
     }
 }
 
@@ -330,6 +426,7 @@ private fun PlaylistRow(
 private fun PlaylistGrid(
     playlists: List<Playlist>,
     onPlaylistClick: (String) -> Unit,
+    onRequestDelete: (Playlist) -> Unit,
 ) {
     val palettes = playlistPalettes()
     LazyVerticalGrid(
@@ -344,21 +441,28 @@ private fun PlaylistGrid(
                 playlist = playlist,
                 palette = palettes[index % palettes.size],
                 onClick = { onPlaylistClick(playlist.id) },
+                onRequestDelete = { onRequestDelete(playlist) },
             )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlaylistGridCard(
     playlist: Playlist,
     palette: PlaylistPalette,
     onClick: () -> Unit,
+    onRequestDelete: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+            // Owned listede uzun basış silme onayını açar; diğerlerinde yalnızca normal tıklama.
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = if (playlist.isOwned) onRequestDelete else null,
+            ),
     ) {
         PlaylistArtwork(
             palette = palette,

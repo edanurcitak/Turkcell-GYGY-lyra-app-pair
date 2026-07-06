@@ -29,6 +29,14 @@ interface OtpAuthRepository {
     suspend fun verifyOtp(phone: String, code: String): Result<AuthSession>
 
     /**
+     * Oturum açan kullanıcının güncel profilini + tier'ını sunucudan çeker ve app-scoped depolara aynalar.
+     *
+     * Saklı erişim token'ını kullanır (önce [verifyOtp] gerekir). Uygulama açılışında profil/tier'ı
+     * tazelemek için kullanılır (§2.2 — istemci hesaplamaz, yalnızca aynalar).
+     */
+    suspend fun getMe(): Result<User>
+
+    /**
      * `firstTime` kullanıcı için profil tamamlama (kayıt) adımı: ad/soyad/doğum tarihini ayarlar.
      *
      * Saklı erişim token'ını kullanır (önce [verifyOtp] gerekir). [birthDate] `YYYY-MM-DD` biçiminde.
@@ -76,6 +84,16 @@ class ApiOtpAuthRepository @Inject constructor(
         // Kimlik bilgisini (ad/soyad/telefon) profilin okuyacağı app-scoped depoya aynala.
         userStore.setUser(session.user)
         session
+    }
+
+    override suspend fun getMe(): Result<User> = runCatching {
+        val token = tokenStore.accessToken
+            ?: throw IllegalStateException("Profil için oturum yok (erişim token'ı bulunamadı).")
+        val user = meApi.getMe("Bearer $token").data.toDomain()
+        // Kimlik ve tier'ı (free/premium) API yanıtından app-scoped depolara aynala (verifyOtp deseni).
+        userStore.setUser(user)
+        membershipStore.setFromUser(user)
+        user
     }
 
     override suspend fun updateInformations(

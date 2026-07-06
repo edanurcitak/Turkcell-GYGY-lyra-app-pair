@@ -20,6 +20,9 @@ interface SongRepository {
 
     suspend fun getSongs(): List<Song>
 
+    /** Tek bir şarkının detayını id ile döndürür — `GET /api/v1/songs/{id}` (public). */
+    suspend fun getSong(id: String): Song
+
     suspend fun getStreamUrl(songId: String): StreamUrl
 
     /** "Son Çalınanlar" — `GET /api/v1/me/recently-played` (korumalı). */
@@ -56,6 +59,9 @@ class ApiSongRepository @Inject constructor(
 
     override suspend fun getSongs(): List<Song> =
         api.getSongs().data.map { it.toDomain() }
+
+    override suspend fun getSong(id: String): Song =
+        api.getSong(id).data.toDomain()
 
     override suspend fun getStreamUrl(songId: String): StreamUrl =
         // Premium-only korumalı uç: Bearer zorunlu (free hesap 403 alır).

@@ -5,6 +5,7 @@ import com.turkcell.lyraapp.data.remote.dto.AddTrackResponseDto
 import com.turkcell.lyraapp.data.remote.dto.AdCompleteBody
 import com.turkcell.lyraapp.data.remote.dto.AdCompleteResponseDto
 import com.turkcell.lyraapp.data.remote.dto.CreatePlaylistBody
+import com.turkcell.lyraapp.data.remote.dto.DeletePlaylistResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaybackNextBody
 import com.turkcell.lyraapp.data.remote.dto.PlaybackNextResponseDto
 import com.turkcell.lyraapp.data.remote.dto.PlaylistResponseDto
@@ -32,6 +33,17 @@ import retrofit2.http.Query
  * istemci yapılandırması bozulmaz. Token, [com.turkcell.lyraapp.data.auth.TokenStore]'dan okunur.
  */
 interface MeApi {
+
+    /**
+     * Oturum açan kullanıcının güncel profilini döndürür (kimlik + aktif üyelik/tier).
+     *
+     * Yanıt zarfı login (`/auth/otp/verify`) ile aynı `User` şemasını taşıdığından [UserResponseDto]
+     * yeniden kullanılır; istemci profili/tier'ı sunucudan tazelemek için çağırır (§2.2 — hesaplamaz).
+     */
+    @GET("api/v1/me")
+    suspend fun getMe(
+        @Header("Authorization") authorization: String,
+    ): UserResponseDto
 
     /**
      * Profil bilgisini (ad/soyad/doğum tarihi) ayarlar — `firstTime` kullanıcılar için kayıt adımı.
@@ -128,6 +140,17 @@ interface MeApi {
         @Header("Authorization") authorization: String,
         @Body body: CreatePlaylistBody,
     ): PlaylistResponseDto
+
+    /**
+     * Kullanıcının kendi çalma listesini (ve tüm parçalarını) siler; çağıran sahibi olmalı.
+     *
+     * Sahip olmayan çağrı **403**, olmayan liste **404** döner (bkz. `docs/api/openapi.json`).
+     */
+    @DELETE("api/v1/me/playlists/{id}")
+    suspend fun deletePlaylist(
+        @Header("Authorization") authorization: String,
+        @Path("id") playlistId: String,
+    ): DeletePlaylistResponseDto
 
     /**
      * Bir şarkıyı kullanıcının çalma listesine ekler ("beğen").
